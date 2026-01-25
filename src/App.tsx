@@ -189,16 +189,14 @@ import { checkAndRefreshCache } from './lib/cacheRefresh';
 import SplashScreen from './components/ui/SplashScreen';
 import { ExtensionManager } from './services/ExtensionManager';
 import { AnimeExtensionManager } from './services/AnimeExtensionManager';
-import { useDiscordRPC } from './hooks/useDiscordRPC';
 
-function GlobalHooks() {
-  const { settings } = useSettings();
-  useDiscordRPC(settings.discordRpcEnabled, settings.discordPrivacyLevel);
-  return null;
-}
+
+
 
 function App() {
-  const [showSplash, setShowSplash] = useState(true);
+  // Detect mobile environment to disable heavy splash screen
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  const [showSplash, setShowSplash] = useState(!isMobile);
   useOfflineSync();
 
 
@@ -238,24 +236,7 @@ function App() {
 
     // Check if app was started minimized but user has startMinimized disabled
     // Read settings from localStorage and show window if needed
-    const checkStartMinimizedSetting = async () => {
-      try {
-        const savedSettings = localStorage.getItem('app-settings');
-        if (savedSettings) {
-          const parsed = JSON.parse(savedSettings);
-          // If startMinimized is explicitly disabled, show the window
-          if (parsed.startMinimized === false) {
-            const { getCurrentWindow } = await import('@tauri-apps/api/window');
-            const mainWindow = getCurrentWindow();
-            await mainWindow.show();
-            console.log('[App] Showing window - startMinimized is disabled');
-          }
-        }
-      } catch (err) {
-        console.error('[App] Failed to check startMinimized setting:', err);
-      }
-    };
-    checkStartMinimizedSetting();
+
   }, []);
 
   useEffect(() => {
@@ -267,12 +248,13 @@ function App() {
 
   return (
     <>
-      {/* Splash Screen - shows on startup */}
-      {showSplash && (
-        <SplashScreen onComplete={() => setShowSplash(false)} minDuration={2000} />
-      )}
 
       <ErrorBoundary>
+        {/* Splash Screen - shows on startup */}
+        {showSplash && (
+          <SplashScreen onComplete={() => setShowSplash(false)} minDuration={2000} />
+        )}
+
         <ApolloProvider client={apolloClient}>
           <ToastProvider>
             <ThemeProvider>
@@ -284,7 +266,7 @@ function App() {
                         <SearchBarProvider>
                           <DynamicThemeProvider>
                             <CursorSpotlight />
-                            <GlobalHooks />
+
                             <BrowserRouter>
                               <Routes>
                                 {/* Root route - checks if onboarding needed */}

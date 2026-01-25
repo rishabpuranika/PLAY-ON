@@ -66,12 +66,19 @@ export default function AnimeBrowse() {
         return AnimeExtensionManager.getSource(selectedSourceId) || null;
     }, [selectedSourceId, sources]);
 
-    // Auto-search effect when source is ready and we have a query from URL
+    // Auto-search effect when source is ready
     useEffect(() => {
-        if (selectedSource && searchQuery && !hasSearched && !isSearching && searchParams.get('q')) {
-            handleSearch();
+        if (selectedSource && searchQuery && !isSearching) {
+            // Case 1: Initial load from URL (hasSearched is false)
+            if (!hasSearched && searchParams.get('q')) {
+                handleSearch();
+            }
+            // Case 2: User switched source while already searching
+            else if (hasSearched) {
+                handleSearch();
+            }
         }
-    }, [selectedSource]); // Only run when source availability changes (initial load)
+    }, [selectedSource]); // Trigger when source changes
 
     // Handle search
     const handleSearch = async () => {
@@ -136,8 +143,10 @@ export default function AnimeBrowse() {
             ) : (
                 <>
                     {/* Search Section */}
-                    <div className="anime-controls">
-                        <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div className="anime-controls" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+
+                        {/* Search Bar - Full Width */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '100%' }}>
                             <div style={{ position: 'relative', flex: 1 }}>
                                 <input
                                     type="text"
@@ -147,15 +156,15 @@ export default function AnimeBrowse() {
                                     onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                                     style={{
                                         width: '100%',
-                                        height: '48px',
-                                        borderRadius: '100px',
+                                        height: '56px', // Increased height
+                                        borderRadius: '16px', // Less pill-like, more boxy for multiline layout
                                         padding: '0 24px',
-                                        background: 'rgba(255, 255, 255, 0.03)',
-                                        border: '1px solid rgba(180, 162, 246, 0.4)', // Matching the purple style
+                                        background: 'rgba(255, 255, 255, 0.05)',
+                                        border: '1px solid rgba(180, 162, 246, 0.4)',
                                         color: 'var(--theme-text-main)',
                                         outline: 'none',
                                         fontFamily: 'var(--font-rounded)',
-                                        fontSize: '1rem'
+                                        fontSize: '1.1rem' // Larger font
                                     }}
                                 />
                                 {searchQuery && (
@@ -177,36 +186,40 @@ export default function AnimeBrowse() {
                                 onClick={handleSearch}
                                 disabled={isSearching || !searchQuery.trim()}
                                 style={{
-                                    width: '48px',
-                                    height: '48px',
-                                    minWidth: '48px',
-                                    borderRadius: '50%',
-                                    background: 'rgba(255, 255, 255, 0.05)',
-                                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                                    width: '56px',
+                                    height: '56px',
+                                    minWidth: '56px',
+                                    borderRadius: '16px',
+                                    background: 'var(--color-zen-accent)', // Make it pop
+                                    border: 'none',
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
                                     cursor: 'pointer',
-                                    color: 'var(--theme-text-muted)',
-                                    transition: 'all 0.2s'
+                                    color: 'white',
+                                    transition: 'all 0.2s',
+                                    boxShadow: '0 4px 12px rgba(180, 162, 246, 0.3)'
                                 }}
                             >
-                                <SearchIcon size={20} />
+                                <SearchIcon size={24} />
                             </button>
                         </div>
 
-                        {/* Source Selector Dropdown */}
-                        <div style={{ marginLeft: 'auto' }}>
-                            <Dropdown
-                                value={selectedSourceId || ''}
-                                options={sources.map(s => ({
-                                    value: s.id,
-                                    label: s.name,
-                                    icon: s.iconUrl ? <img src={s.iconUrl} alt="" style={{ width: 16, height: 16, borderRadius: 2 }} /> : undefined
-                                }))}
-                                onChange={(val) => setSelectedSourceId(val)}
-                                className="w-48"
-                            />
+                        {/* Source Selector Dropdown - Next Line */}
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '4px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ fontSize: '0.9rem', color: 'var(--color-text-muted)' }}>Source:</span>
+                                <Dropdown
+                                    value={selectedSourceId || ''}
+                                    options={sources.map(s => ({
+                                        value: s.id,
+                                        label: s.name,
+                                        icon: s.iconUrl ? <img src={s.iconUrl} alt="" style={{ width: 16, height: 16, borderRadius: 2 }} /> : undefined
+                                    }))}
+                                    onChange={(val) => setSelectedSourceId(val)}
+                                    className="w-48"
+                                />
+                            </div>
                         </div>
                     </div>
 

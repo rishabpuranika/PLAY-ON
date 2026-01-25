@@ -543,35 +543,6 @@ function MangaReader() {
 
 
 
-    const toggleControls = useCallback(() => {
-        setShowControls(prev => !prev);
-    }, []);
-
-    const goToNextPage = useCallback(() => {
-        const increment = readingMode === 'double' ? 2 : 1;
-        if (currentPage < pages.length - increment) {
-            setCurrentPage((p) => p + increment);
-        } else if (currentPage < pages.length - 1) {
-            // Handle odd pages in double mode
-            setCurrentPage(pages.length - 1);
-        } else {
-            // Last page, go to next chapter
-            goToNextChapter();
-        }
-    }, [currentPage, pages.length, readingMode]);
-
-    const goToPrevPage = useCallback(() => {
-        const decrement = readingMode === 'double' ? 2 : 1;
-        if (currentPage >= decrement) {
-            setCurrentPage((p) => p - decrement);
-        } else if (currentPage > 0) {
-            setCurrentPage(0);
-        } else {
-            // First page, go to previous chapter
-            goToPrevChapter();
-        }
-    }, [currentPage, readingMode]);
-
     const goToNextChapter = useCallback(() => {
         if (!currentChapter || chapters.length === 0) return;
         const currentIndex = chapters.findIndex((c) => c.id === currentChapter.id);
@@ -590,6 +561,62 @@ function MangaReader() {
             navigate(`/read/${sourceId}/${prevChapter.id}?mangaId=${mangaId}&title=${encodeURIComponent(mangaTitle || '')}`);
         }
     }, [currentChapter, chapters, sourceId, mangaId, mangaTitle, navigate]);
+
+    const goToNextPage = useCallback(() => {
+        const increment = readingMode === 'double' ? 2 : 1;
+        if (currentPage < pages.length - increment) {
+            setCurrentPage((p) => p + increment);
+        } else if (currentPage < pages.length - 1) {
+            // Handle odd pages in double mode
+            setCurrentPage(pages.length - 1);
+        } else {
+            // Last page, go to next chapter
+            goToNextChapter();
+        }
+    }, [currentPage, pages.length, readingMode, goToNextChapter]);
+
+    const goToPrevPage = useCallback(() => {
+        const decrement = readingMode === 'double' ? 2 : 1;
+        if (currentPage >= decrement) {
+            setCurrentPage((p) => p - decrement);
+        } else if (currentPage > 0) {
+            setCurrentPage(0);
+        } else {
+            // First page, go to previous chapter
+            goToPrevChapter();
+        }
+    }, [currentPage, readingMode, goToPrevChapter]);
+
+    const handleContentClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+        // If vertical mode, any click toggles controls (or maybe just center? Standard is usually any click or center)
+        // Let's stick to center-tap for controls in all modes for consistency, or standard behavior.
+        // Standard Webtoon: Tap anywhere toggles.
+        // Standard Manga Reader (Single): Left/Right nav, Center toggle.
+
+        if (readingMode === 'vertical') {
+            setShowControls(prev => !prev);
+            return;
+        }
+
+        // Single / Double Mode
+        const { clientX, currentTarget } = e;
+        const width = currentTarget.clientWidth;
+        const x = clientX - currentTarget.getBoundingClientRect().left;
+        const region = x / width;
+
+        // Center 30% (0.35 to 0.65) -> Toggle Controls
+        if (region > 0.35 && region < 0.65) {
+            setShowControls(prev => !prev);
+        }
+        // Left 35% -> Prev
+        else if (region <= 0.35) {
+            goToPrevPage();
+        }
+        // Right 35% -> Next
+        else {
+            goToNextPage();
+        }
+    }, [readingMode, goToPrevPage, goToNextPage]);
 
     const handleBack = () => {
         if (mangaId) {
@@ -686,6 +713,19 @@ function MangaReader() {
         );
     }
 
+    // Navigation availability check
+    const currentChapterIndex = chapters.findIndex((c) => c.id === currentChapter?.id);
+    const hasPrevChapter = currentChapterIndex < chapters.length - 1 && currentChapterIndex !== -1;
+    const hasNextChapter = currentChapterIndex > 0;
+
+    const canGoPrev = currentPage > 0 || hasPrevChapter;
+    // For double mode, we might be at index pages.length-2 (showing last 2 pages), so we can't go page-next, but can go chapter-next
+    // Check if we are at the visual end of the pages
+    const isAtLastPage = readingMode === 'double'
+        ? currentPage >= pages.length - 2
+        : currentPage >= pages.length - 1;
+    const canGoNext = !isAtLastPage || hasNextChapter;
+
     return (
         <div className="manga-reader" ref={readerRef}>
             {/* Top Controls */}
@@ -722,7 +762,7 @@ function MangaReader() {
             </div>
 
             {/* Main Content */}
-            <div className={`reader-content ${readingMode}`} onClick={toggleControls}>
+            <div className={`reader-content ${readingMode}`} onClick={handleContentClick}>
                 {readingMode === 'vertical' ? (
                     <div className="vertical-scroll" ref={scrollContainerRef} style={{ maxWidth: `${zoom}px` }}>
                         {pages.map((page) => (
@@ -737,7 +777,11 @@ function MangaReader() {
                     </div>
                 ) : readingMode === 'double' ? (
                     <div className="double-page">
-                        <button className="nav-area prev" onClick={goToPrevPage}>
+                        <button
+                            className={`nav-area prev ${!canGoPrev ? 'disabled' : ''}`}
+                            onClick={goToPrevPage}
+                            disabled={!canGoPrev}
+                        >
                             <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                 <path d="M15 18l-6-6 6-6" />
                             </svg>
@@ -764,7 +808,11 @@ function MangaReader() {
                             )}
                         </div>
 
-                        <button className="nav-area next" onClick={goToNextPage}>
+                        <button
+                            className={`nav-area next ${!canGoNext ? 'disabled' : ''}`}
+                            onClick={goToNextPage}
+                            disabled={!canGoNext}
+                        >
                             <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                 <path d="M9 18l6-6-6-6" />
                             </svg>
@@ -772,7 +820,11 @@ function MangaReader() {
                     </div>
                 ) : (
                     <div className="single-page">
-                        <button className="nav-area prev" onClick={goToPrevPage}>
+                        <button
+                            className={`nav-area prev ${!canGoPrev ? 'disabled' : ''}`}
+                            onClick={goToPrevPage}
+                            disabled={!canGoPrev}
+                        >
                             <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                 <path d="M15 18l-6-6 6-6" />
                             </svg>
@@ -787,7 +839,11 @@ function MangaReader() {
                             />
                         )}
 
-                        <button className="nav-area next" onClick={goToNextPage}>
+                        <button
+                            className={`nav-area next ${!canGoNext ? 'disabled' : ''}`}
+                            onClick={goToNextPage}
+                            disabled={!canGoNext}
+                        >
                             <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                 <path d="M9 18l6-6-6-6" />
                             </svg>

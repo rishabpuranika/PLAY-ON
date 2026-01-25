@@ -563,7 +563,6 @@ function MangaSourceDetails() {
                                     padding: '6px 12px',
                                     color: 'white',
                                     fontSize: '0.9rem',
-                                    minWidth: '200px',
                                     outline: 'none'
                                 }}
                             />
@@ -609,15 +608,7 @@ function MangaSourceDetails() {
                             </svg>
                         </button>
 
-                        {/* Search */}
-                        <div className="chapter-search">
-                            <input
-                                type="text"
-                                placeholder="Search chapters..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                            />
-                        </div>
+
 
 
                     </div>

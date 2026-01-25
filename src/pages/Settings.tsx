@@ -3,7 +3,7 @@ import { pickDirectory } from '../lib/fileSystem';
 
 import { useSettings } from '../context/SettingsContext';
 import { useTheme } from '../context/ThemeContext';
-import { useAuthContext } from '../context/AuthContext';
+
 import { useLocalMedia } from '../context/LocalMediaContext';
 import {
     getLibraryCategories,
@@ -14,19 +14,14 @@ import {
 } from '../lib/localMangaDb';
 import {
     SettingsIcon,
-    LinkIcon,
     BookIcon,
     FolderIcon,
     WrenchIcon,
     PuzzleIcon
 } from '../components/ui/Icons';
-import { DEFAULT_KEYBOARD_SHORTCUTS, ShortcutAction } from '../context/SettingsContext';
-import { formatShortcutFromEvent } from '../hooks/useKeyboardShortcuts';
 import { Dropdown } from '../components/ui/Dropdown';
 import './Settings.css';
-import TrackerConnections from '../components/settings/TrackerConnections';
 import ExtensionsSettings from '../components/settings/ExtensionsSettings';
-import { ProfileSettingsModal, ProfileSettingsButton } from '../components/settings/ProfileSettings';
 
 
 // ============================================================================
@@ -34,7 +29,7 @@ import { ProfileSettingsModal, ProfileSettingsButton } from '../components/setti
 // Comprehensive settings interface with 5 categories
 // ============================================================================
 
-type TabId = 'general' | 'integrations' | 'extensions' | 'manga' | 'storage' | 'advanced';
+type TabId = 'general' | 'extensions' | 'manga' | 'storage' | 'advanced';
 
 interface Tab {
     id: TabId;
@@ -44,7 +39,6 @@ interface Tab {
 
 const TABS: Tab[] = [
     { id: 'general', label: 'General', icon: <SettingsIcon size={18} /> },
-    { id: 'integrations', label: 'Integrations', icon: <LinkIcon size={18} /> },
     { id: 'extensions', label: 'Extensions', icon: <PuzzleIcon size={18} /> },
     { id: 'manga', label: 'Manga', icon: <BookIcon size={18} /> },
     { id: 'storage', label: 'Storage & Library', icon: <FolderIcon size={18} /> },
@@ -108,40 +102,7 @@ function SettingRow({ label, description, children }: SettingRowProps) {
 // Uses the Tauri autostart plugin to manage launch-at-startup
 // ============================================================================
 
-function AutostartToggle() {
-    const [isEnabled, setIsEnabled] = useState(false);
-    const [isLoading, setIsLoading] = useState(true);
 
-    useEffect(() => {
-        // Check current autostart status on mount
-        import('@tauri-apps/plugin-autostart').then(({ isEnabled: checkEnabled }) => {
-            checkEnabled().then(setIsEnabled).catch(console.error).finally(() => setIsLoading(false));
-        });
-    }, []);
-
-    const handleToggle = async (checked: boolean) => {
-        // Optimistically update the UI immediately for smooth animation
-        setIsEnabled(checked);
-        try {
-            const { enable, disable } = await import('@tauri-apps/plugin-autostart');
-            if (checked) {
-                await enable();
-            } else {
-                await disable();
-            }
-        } catch (err) {
-            console.error('Failed to toggle autostart:', err);
-            // Revert on error
-            setIsEnabled(!checked);
-        }
-    };
-
-    return (
-        <div style={{ opacity: isLoading ? 0.5 : 1, pointerEvents: isLoading ? 'none' : 'auto' }}>
-            <Toggle checked={isEnabled} onChange={handleToggle} />
-        </div>
-    );
-}
 
 // ============================================================================
 // THEME PREVIEWS
@@ -243,41 +204,45 @@ function GeneralSettings() {
                 </SettingRow>
             </div>
 
-            {/* Window Behavior Section */}
+            {/* Gestures Section */}
             <div className="setting-group">
-                <h3 className="setting-group-title">Window Behavior</h3>
+                <h3 className="setting-group-title">Gestures</h3>
 
-                <SettingRow
-                    label="Launch at Startup"
-                    description="Automatically start the app when your computer boots"
-                >
-                    <AutostartToggle />
-                </SettingRow>
-
-                <SettingRow
-                    label="Minimize to Tray on Close"
-                    description="When enabled, closing the app minimizes it to the system tray. When disabled, the app quits completely."
-                >
-                    <Toggle
-                        checked={settings.closeToTray}
-                        onChange={(checked) => updateSetting('closeToTray', checked)}
+                <div className="setting-row">
+                    <div className="setting-info">
+                        <span className="setting-label">Go Back</span>
+                        <span className="setting-description">Gesture to navigate back</span>
+                    </div>
+                    <Dropdown
+                        value={settings.gestures.goBack}
+                        options={[
+                            { value: 'swipeRight', label: 'Swipe Right' },
+                            { value: 'swipeLeft', label: 'Swipe Left' },
+                            { value: 'doubleTap', label: 'Double Tap' },
+                            { value: 'none', label: 'None' },
+                        ]}
+                        onChange={(val) => updateSetting('gestures', { ...settings.gestures, goBack: val as any })}
                     />
-                </SettingRow>
+                </div>
 
-                <SettingRow
-                    label="Start Minimized"
-                    description="When enabled, the app will start minimized to the system tray (only applies when Launch at Startup is enabled)."
-                >
-                    <Toggle
-                        checked={settings.startMinimized}
-                        onChange={(checked) => updateSetting('startMinimized', checked)}
+                <div className="setting-row">
+                    <div className="setting-info">
+                        <span className="setting-label">Go Forward</span>
+                        <span className="setting-description">Gesture to navigate forward</span>
+                    </div>
+                    <Dropdown
+                        value={settings.gestures.goForward}
+                        options={[
+                            { value: 'swipeRight', label: 'Swipe Right' },
+                            { value: 'swipeLeft', label: 'Swipe Left' },
+                            { value: 'doubleTap', label: 'Double Tap' },
+                            { value: 'none', label: 'None' },
+                        ]}
+                        onChange={(val) => updateSetting('gestures', { ...settings.gestures, goForward: val as any })}
                     />
-                </SettingRow>
+                </div>
             </div>
 
-            {/* Keyboard Shortcuts Section */}
-            <div style={{ margin: '32px 0 16px', borderTop: '1px solid var(--theme-border-subtle)' }} />
-            <KeyboardSettings />
         </div>
     );
 }
@@ -286,74 +251,7 @@ function GeneralSettings() {
 // SECTION: Integrations Settings
 // ============================================================================
 
-function IntegrationsSettings() {
-    const { settings, updateSetting } = useSettings();
-    const { isAuthenticated, user, logout } = useAuthContext();
-    const [showProfileModal, setShowProfileModal] = useState(false);
 
-    return (
-        <div className="settings-section">
-            <h2 className="settings-section-title">Integrations</h2>
-            <p className="settings-section-description">
-                Connect with external services
-            </p>
-
-            <div className="setting-group">
-                <h3 className="setting-group-title">AniList</h3>
-
-                <SettingRow
-                    label="Connection Status"
-                    description={isAuthenticated ? `Logged in as ${user?.name}` : 'Not connected'}
-                >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <span className={`status-badge ${isAuthenticated ? 'connected' : 'disconnected'}`}>
-                            <span className="status-dot" />
-                            {isAuthenticated ? 'Connected' : 'Disconnected'}
-                        </span>
-                        {isAuthenticated && (
-                            <button className="setting-button danger" onClick={logout}>
-                                Disconnect
-                            </button>
-                        )}
-                    </div>
-                </SettingRow>
-
-                {isAuthenticated && (
-                    <>
-                        <div style={{ marginTop: '16px', marginBottom: '16px' }}>
-                            <ProfileSettingsButton onClick={() => setShowProfileModal(true)} />
-                        </div>
-
-                        <SettingRow label="Auto Sync" description="Automatically sync progress with AniList">
-                            <Toggle
-                                checked={settings.anilistAutoSync}
-                                onChange={(checked) => updateSetting('anilistAutoSync', checked)}
-                            />
-                        </SettingRow>
-                    </>
-                )}
-            </div>
-
-            <div className="setting-group">
-                <h3 className="setting-group-title">Discord</h3>
-
-                <SettingRow label="Rich Presence" description="Show currently watching on Discord">
-                    <Toggle
-                        checked={settings.discordRpcEnabled}
-                        onChange={(checked) => updateSetting('discordRpcEnabled', checked)}
-                    />
-                </SettingRow>
-            </div>
-
-            <TrackerConnections />
-
-            <ProfileSettingsModal
-                isOpen={showProfileModal}
-                onClose={() => setShowProfileModal(false)}
-            />
-        </div>
-    );
-}
 
 // ============================================================================
 // SECTION: Manga Settings
@@ -405,7 +303,7 @@ function MangaSettings() {
                 <h3 className="setting-group-title">Downloads</h3>
 
                 <SettingRow label="Manga Download Path" description="Where to save downloaded chapters">
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', width: '100%' }}>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', width: '100%', maxWidth: '100%', overflow: 'hidden' }}>
                         <input
                             type="text"
                             value={settings.mangaDownloadPath || ''}
@@ -413,13 +311,15 @@ function MangaSettings() {
                             placeholder="Not configured"
                             style={{
                                 flexGrow: 1,
+                                width: '0', // Allow flex shrink
                                 padding: '8px 12px',
                                 borderRadius: '50px',
                                 background: 'rgba(255,255,255,0.05)',
                                 border: 'none',
                                 color: 'var(--color-text-main)',
                                 fontSize: '13px',
-                                fontFamily: 'var(--font-mono)'
+                                fontFamily: 'var(--font-mono)',
+                                textOverflow: 'ellipsis'
                             }}
                         />
                         <button className="setting-button" onClick={async () => {
@@ -670,112 +570,7 @@ function StorageSettings() {
 // SECTION: Keyboard Settings
 // ============================================================================
 
-const SHORTCUT_LABELS: Record<ShortcutAction, { label: string; description: string }> = {
-    searchAnime: { label: 'Search Anime', description: 'Focus search bar in Anime mode' },
-    searchManga: { label: 'Search Manga', description: 'Focus search bar in Manga mode' },
-    goHome: { label: 'Go to Home', description: 'Navigate to Home page' },
-    goAnimeList: { label: 'Go to Anime List', description: 'Navigate to Anime List' },
-    goMangaList: { label: 'Go to Manga List', description: 'Navigate to Manga List' },
-    goSettings: { label: 'Go to Settings', description: 'Navigate to Settings' },
-    goProfile: { label: 'Go to Profile', description: 'Navigate to Profile' },
-    goBack: { label: 'Go Back', description: 'Navigate to previous page' },
-    goForward: { label: 'Go Forward', description: 'Navigate to next page' },
-    escape: { label: 'Escape / Close', description: 'Close dropdowns and dialogs' },
-};
 
-function formatKeyForDisplay(shortcut: string) {
-    // Split by + and wrap in kbd styles
-    return shortcut.split('+').map((key, i) => (
-        <span key={i} className="shortcut-key-wrapper">
-            {i > 0 && <span className="shortcut-separator">+</span>}
-            <kbd className="shortcut-key">{key.trim()}</kbd>
-        </span>
-    ));
-}
-
-function KeyboardSettings() {
-    const { settings, updateSetting } = useSettings();
-    const [recordingAction, setRecordingAction] = useState<ShortcutAction | null>(null);
-
-    const handleRecordShortcut = useCallback((action: ShortcutAction) => {
-        setRecordingAction(action);
-    }, []);
-
-    const handleKeyDown = useCallback((event: React.KeyboardEvent) => {
-        if (!recordingAction) return;
-
-        event.preventDefault();
-        event.stopPropagation();
-
-        // Ignore modifier-only presses
-        if (['Control', 'Shift', 'Alt', 'Meta'].includes(event.key)) return;
-
-        const shortcut = formatShortcutFromEvent(event.nativeEvent);
-
-        // Update the shortcut
-        const newShortcuts = { ...settings.keyboardShortcuts, [recordingAction]: shortcut };
-        updateSetting('keyboardShortcuts', newShortcuts);
-        setRecordingAction(null);
-    }, [recordingAction, settings.keyboardShortcuts, updateSetting]);
-
-    const handleResetShortcut = useCallback((action: ShortcutAction) => {
-        const newShortcuts = { ...settings.keyboardShortcuts, [action]: DEFAULT_KEYBOARD_SHORTCUTS[action] };
-        updateSetting('keyboardShortcuts', newShortcuts);
-    }, [settings.keyboardShortcuts, updateSetting]);
-
-    const handleResetAll = useCallback(() => {
-        updateSetting('keyboardShortcuts', { ...DEFAULT_KEYBOARD_SHORTCUTS });
-    }, [updateSetting]);
-
-    return (
-        <div onKeyDown={handleKeyDown}>
-
-            <div className="setting-group">
-                <h3 className="setting-group-title">Keyboard Shortcuts</h3>
-
-                {(Object.entries(SHORTCUT_LABELS) as [ShortcutAction, { label: string; description: string }][]).map(
-                    ([action, { label, description }]) => (
-                        <div key={action} className="setting-row">
-                            <div className="setting-info">
-                                <span className="setting-label">{label}</span>
-                                <span className="setting-description">{description}</span>
-                            </div>
-                            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                <button
-                                    className={`shortcut-key-button ${recordingAction === action ? 'recording' : ''}`}
-                                    onClick={() => handleRecordShortcut(action)}
-                                >
-                                    {recordingAction === action ? (
-                                        <span className="recording-pulse">Press keys...</span>
-                                    ) : (
-                                        <div className="shortcut-keys-display">
-                                            {formatKeyForDisplay(settings.keyboardShortcuts[action])}
-                                        </div>
-                                    )}
-                                </button>
-                                {settings.keyboardShortcuts[action] !== DEFAULT_KEYBOARD_SHORTCUTS[action] && (
-                                    <button
-                                        className="setting-button reset-tiny"
-                                        onClick={() => handleResetShortcut(action)}
-                                        title="Reset to default"
-                                    >
-                                        ↺
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-                    )
-                )}
-            </div>
-
-            <div className="setting-group" style={{ marginTop: '24px' }}>
-                <button className="setting-button" onClick={handleResetAll}>
-                    Reset All to Defaults
-                </button>
-            </div>
-        </div>
-    );
-}
 
 // ... (AdvancedSettings updated below) ...
 
@@ -948,8 +743,7 @@ export default function Settings() {
         switch (activeTab) {
             case 'general':
                 return <GeneralSettings />;
-            case 'integrations':
-                return <IntegrationsSettings />;
+
             case 'extensions':
                 return <ExtensionsSettings />;
             case 'manga':

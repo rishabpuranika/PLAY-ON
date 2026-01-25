@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { HomeIcon, LibraryIcon, CompassIcon, CalendarIcon, SettingsIcon } from './Icons';
+import { HomeIcon, LibraryIcon, CompassIcon, SettingsIcon, BookOpenIcon, CalendarIcon } from './Icons';
 
 interface MobileNavItemProps {
     label: string;
@@ -30,10 +30,10 @@ const MobileNav: React.FC = () => {
 
     const navItems = [
         { label: 'Home', path: '/home', icon: <HomeIcon size={20} /> },
+        { label: 'Anime', path: '/anime-browse', icon: <CompassIcon size={20} /> },
+        { label: 'Manga', path: '/manga-browse', icon: <BookOpenIcon size={20} /> },
         { label: 'My List', path: '/my-list', icon: <LibraryIcon size={20} /> },
-        { label: 'Browse', path: '/anime-browse', icon: <CompassIcon size={20} /> },
         { label: 'Calendar', path: '/calendar', icon: <CalendarIcon size={20} /> },
-        { label: 'Settings', path: '/settings', icon: <SettingsIcon size={20} /> },
     ];
 
     return (

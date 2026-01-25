@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Outlet } from 'react-router-dom';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { Outlet, useNavigate } from 'react-router-dom';
 import Sidebar from '../components/sidebar/Sidebar';
 import Titlebar from '../components/titlebar/Titlebar';
 import TabNavigation from '../components/ui/TabNavigation';
@@ -8,9 +8,10 @@ import Breadcrumbs from '../components/ui/Breadcrumbs';
 
 import FloatingNowPlaying from '../components/ui/FloatingNowPlaying';
 import MobileNav from '../components/ui/MobileNav'; // Import MobileNav
-import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
+import { useGestures } from '../hooks/useGestures';
 import { useSearchBar } from '../context/SearchBarContext';
 import { useAuth } from '../hooks/useAuth';
+import { useSettings } from '../context/SettingsContext';
 
 /**
  * MainLayout Component
@@ -50,20 +51,33 @@ function MainLayout() {
         }
     }, [user?.name, isMobile, sidebarWidth]); // Check when username changes (e.g. login)
 
-    // Keyboard Shortcuts
-    const { focusSearch } = useSearchBar();
-    useKeyboardShortcuts({
-        onSearchAnime: () => focusSearch('anime'),
-        onSearchManga: () => focusSearch('manga'),
+    // Gestures for Mobile Navigation
+    const containerRef = useRef<HTMLDivElement>(null);
+    const navigate = useNavigate();
+    const { settings } = useSettings();
+
+    // Helper to execute action
+    const executeAction = (action: 'goBack' | 'goForward') => {
+        if (action === 'goBack') navigate(-1);
+        if (action === 'goForward') navigate(1);
+    };
+
+    useGestures(containerRef, {
+        onSwipeRight: () => {
+            if (settings.gestures.goBack === 'swipeRight') executeAction('goBack');
+            if (settings.gestures.goForward === 'swipeRight') executeAction('goForward');
+        },
+        onSwipeLeft: () => {
+            if (settings.gestures.goBack === 'swipeLeft') executeAction('goBack');
+            if (settings.gestures.goForward === 'swipeLeft') executeAction('goForward');
+        },
+        onTwoFingerTap: () => {
+            // Future: toggle UI
+        }
     });
 
-    const handleBack = () => {
-        window.history.back();
-    };
-
-    const handleForward = () => {
-        window.history.forward();
-    };
+    const handleBack = () => navigate(-1);
+    const handleForward = () => navigate(1);
 
     const startResizing = useCallback(() => {
         setIsResizing(true);
@@ -93,6 +107,7 @@ function MainLayout() {
 
     return (
         <div
+            ref={containerRef}
             className="main-layout-container"
             style={{ userSelect: isResizing ? 'none' : 'auto' }}
         >
@@ -131,6 +146,21 @@ function MainLayout() {
 
                         {/* Always show Breadcrumbs (User request: "add home displayed on top") */}
                         <div className={`pointer-events-auto ${isMobile ? 'pl-4' : ''}`}><Breadcrumbs /></div>
+
+                        {/* Mobile Settings Icon */}
+                        {isMobile && (
+                            <div className="absolute top-4 right-4 pointer-events-auto">
+                                <button
+                                    onClick={() => navigate('/settings')}
+                                    className="p-2 bg-black/40 backdrop-blur-md rounded-full text-white/70 hover:text-white border border-white/10"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path>
+                                        <circle cx="12" cy="12" r="3"></circle>
+                                    </svg>
+                                </button>
+                            </div>
+                        )}
                     </div>
 
                     {/* Scrollable Content Container */}

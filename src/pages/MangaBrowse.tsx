@@ -139,9 +139,9 @@ function MangaBrowse() {
             </div>
 
             {/* Controls */}
-            <div className="browse-controls">
-                {/* Search Bar */}
-                <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div className="browse-controls" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+                {/* Search Bar - Full Width */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '100%' }}>
                     <div style={{ position: 'relative', flex: 1 }}>
                         <input
                             type="text"
@@ -150,15 +150,15 @@ function MangaBrowse() {
                             placeholder={`Search on ${currentSource?.name || 'source'}...`}
                             style={{
                                 width: '100%',
-                                height: '48px',
-                                borderRadius: '100px',
+                                height: '56px',
+                                borderRadius: '16px',
                                 padding: '0 24px',
-                                background: 'rgba(255, 255, 255, 0.03)',
-                                border: '1px solid rgba(180, 162, 246, 0.4)', // Matching the purple tint from image
+                                background: 'rgba(255, 255, 255, 0.05)',
+                                border: '1px solid rgba(180, 162, 246, 0.4)',
                                 color: 'var(--theme-text-main)',
                                 outline: 'none',
                                 fontFamily: 'var(--font-rounded)',
-                                fontSize: '1rem'
+                                fontSize: '1.1rem'
                             }}
                         />
                         {query && (
@@ -179,37 +179,41 @@ function MangaBrowse() {
 
                     <button
                         style={{
-                            width: '48px',
-                            height: '48px',
-                            minWidth: '48px',
-                            borderRadius: '50%',
-                            background: 'rgba(255, 255, 255, 0.05)',
-                            border: '1px solid rgba(255, 255, 255, 0.1)',
+                            width: '56px',
+                            height: '56px',
+                            minWidth: '56px',
+                            borderRadius: '16px',
+                            background: 'var(--color-zen-accent)',
+                            border: 'none',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
                             cursor: 'pointer',
-                            color: 'var(--theme-text-muted)',
-                            transition: 'all 0.2s'
+                            color: 'white',
+                            transition: 'all 0.2s',
+                            boxShadow: '0 4px 12px rgba(180, 162, 246, 0.3)'
                         }}
                     >
-                        <SearchIcon size={20} />
+                        <SearchIcon size={24} />
                     </button>
                 </div>
 
                 {/* Source Selector Dropdown */}
                 {sources.length > 0 && (
-                    <div style={{ marginLeft: 'auto' }}>
-                        <Dropdown
-                            value={currentSourceId}
-                            options={sources.map(s => ({
-                                value: s.id,
-                                label: s.name,
-                                icon: s.iconUrl ? <img src={s.iconUrl} alt="" style={{ width: 16, height: 16, borderRadius: 2 }} /> : undefined
-                            }))}
-                            onChange={(val) => handleSourceChange(val)}
-                            className="w-48"
-                        />
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '4px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontSize: '0.9rem', color: 'var(--color-text-muted)' }}>Source:</span>
+                            <Dropdown
+                                value={currentSourceId}
+                                options={sources.map(s => ({
+                                    value: s.id,
+                                    label: s.name,
+                                    icon: s.iconUrl ? <img src={s.iconUrl} alt="" style={{ width: 16, height: 16, borderRadius: 2 }} /> : undefined
+                                }))}
+                                onChange={(val) => handleSourceChange(val)}
+                                className="w-48"
+                            />
+                        </div>
                     </div>
                 )}
             </div>

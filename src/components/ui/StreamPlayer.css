@@ -65,7 +65,6 @@
 }
 
 /* Controls Layer */
-/* Controls Layer */
 .stream-controls {
     position: absolute;
     bottom: 0;
@@ -79,7 +78,6 @@
     flex-direction: column;
     gap: 0.75rem;
     box-sizing: border-box;
-    /* Fix padding causing overflow */
 }
 
 .stream-controls.visible {
@@ -173,9 +171,6 @@
     cursor: pointer;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
     transition: transform 0.2s ease;
-    transform: scale(0);
-    /* Hide thumb usually, show on hover? Or always show? */
-    /* Android player usually hides thumb or shows small dot. I'll make it visible but small. */
     transform: scale(1);
     margin-top: 0;
 }
@@ -205,7 +200,6 @@
     align-items: center;
     width: 100%;
     margin-top: 5px;
-    /* Add slight spacing from progress bar */
 }
 
 .left-controls,
@@ -222,7 +216,6 @@
     width: 40px;
     height: 40px;
     border-radius: 8px;
-    /* Squared with radius */
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -275,10 +268,6 @@
 }
 
 /* Menus (Quality & Subtitles) */
-.control-group {
-    position: relative;
-}
-
 .settings-menu {
     position: absolute;
     bottom: calc(100% + 12px);
@@ -289,6 +278,8 @@
     border-radius: 12px;
     padding: 0.5rem;
     min-width: 140px;
+    max-width: 200px;
+    /* Prevent wide menus on mobile */
     display: flex;
     flex-direction: column;
     gap: 2px;
@@ -297,18 +288,7 @@
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
     transform-origin: bottom right;
     animation: menu-pop 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-@keyframes menu-pop {
-    from {
-        opacity: 0;
-        transform: scale(0.9) translateY(10px);
-    }
-
-    to {
-        opacity: 1;
-        transform: scale(1) translateY(0);
-    }
+    z-index: 50;
 }
 
 .menu-item {
@@ -335,19 +315,6 @@
     font-weight: 600;
 }
 
-/* Video subtitle styling */
-.stream-video::cue {
-    background: rgba(0, 0, 0, 0.6);
-    color: #fff;
-    font-size: clamp(1rem, 2vw, 1.5rem);
-    font-family: var(--font-rounded);
-    padding: 0.2rem 0.6rem;
-    border-radius: 4px;
-    margin-bottom: 4rem;
-    /* Move up slightly */
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
-}
-
 /* Skip Button */
 .skip-button {
     position: absolute;
@@ -370,94 +337,80 @@
     animation: slideUp 0.3s ease-out;
 }
 
-/* Autoplay Overlay */
-.autoplay-overlay {
-    position: absolute;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.7);
-    backdrop-filter: blur(5px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 50;
-    animation: fadeIn 0.3s ease;
-}
+/* ============================================================================
+   MOBILE RESPONSIVENESS
+   ============================================================================ */
+@media (max-width: 768px) {
 
-.autoplay-content {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 1.5rem;
-}
-
-.autoplay-content h3 {
-    color: #fff;
-    font-size: 1.5rem;
-    margin: 0;
-}
-
-.autoplay-timer svg {
-    filter: drop-shadow(0 0 10px rgba(180, 162, 246, 0.5));
-}
-
-.autoplay-actions {
-    display: flex;
-    gap: 1rem;
-}
-
-.autoplay-btn {
-    padding: 10px 24px;
-    border-radius: 8px;
-    font-weight: 600;
-    cursor: pointer;
-    border: none;
-    transition: all 0.2s;
-    font-size: 1rem;
-}
-
-.autoplay-btn.cancel {
-    background: rgba(255, 255, 255, 0.1);
-    color: #fff;
-}
-
-.autoplay-btn.cancel:hover {
-    background: rgba(255, 255, 255, 0.2);
-}
-
-.autoplay-btn.play-now {
-    background: var(--color-zen-accent, #B4A2F6);
-    color: #000;
-}
-
-.autoplay-btn.play-now:hover {
-    background: #cbbdf8;
-    transform: scale(1.05);
-}
-
-@keyframes fadeIn {
-    from {
-        opacity: 0;
+    /* Controls Layer */
+    .stream-controls {
+        padding: 0.75rem 0.5rem;
+        /* Drastically reduced padding */
+        gap: 0.25rem;
     }
 
-    to {
-        opacity: 1;
-    }
-}
-
-.skip-button:hover {
-    background: rgba(255, 255, 255, 0.25);
-    transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
-}
-
-@keyframes slideUp {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
+    /* Title */
+    .stream-title {
+        font-size: 0.9rem;
+        margin-bottom: 0.25rem;
+        padding-left: 0.5rem;
     }
 
-    to {
-        opacity: 1;
-        transform: translateY(0);
+    /* Progress Bar */
+    .stream-progress {
+        gap: 0.5rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .interactive-slider::-webkit-slider-thumb {
+        width: 16px;
+        /* Larger hit target */
+        height: 16px;
+    }
+
+    .time-display {
+        font-size: 0.75rem;
+        min-width: unset;
+        /* Allow shrinking */
+    }
+
+    /* Buttons */
+    .stream-buttons {
+        margin-top: 0;
+    }
+
+    .control-btn {
+        width: 36px;
+        height: 36px;
+        padding: 6px;
+    }
+
+    .left-controls,
+    .right-controls {
+        gap: 0.25rem;
+    }
+
+    /* Hide Volume Slider on Mobile */
+    .volume-control .volume-slider {
+        display: none;
+    }
+
+    .volume-control {
+        margin-left: 0;
+    }
+
+    /* Skip Button */
+    .skip-button {
+        bottom: 70px;
+        right: 12px;
+        padding: 8px 16px;
+        font-size: 0.85rem;
+    }
+
+    /* Menu Adjustments */
+    .settings-menu {
+        bottom: 50px;
+        right: 4px;
+        max-width: 200px;
     }
 }

@@ -365,6 +365,12 @@
     background: linear-gradient(to left, rgba(0, 0, 0, 0.4), transparent);
 }
 
+.nav-area.disabled {
+    pointer-events: none;
+    cursor: default;
+    display: none;
+}
+
 /* Bottom Controls */
 .reader-controls-bottom {
     position: fixed;
@@ -519,5 +525,117 @@
     height: 100%;
     background: linear-gradient(90deg, #B4A2F6, #9DF0B3);
     border-radius: 2px;
-    transition: width 0.2s ease;
+}
+
+/* ============================================================================
+   MOBILE RESPONSIVENESS
+   ============================================================================ */
+@media (max-width: 768px) {
+
+    /* Top Controls */
+    .reader-controls-top {
+        padding: 0.75rem 1rem;
+        gap: 0.5rem;
+    }
+
+    .manga-reader .reader-controls-top .back-btn {
+        position: relative;
+        left: 0;
+        width: 36px;
+        height: 36px;
+        flex-shrink: 0;
+    }
+
+    .reader-settings {
+        position: relative;
+        right: 0;
+        gap: 8px;
+    }
+
+    .chapter-info {
+        flex: 1;
+        min-width: 0;
+        /* Align with flex shrinking */
+        align-items: flex-start;
+        text-align: left;
+        padding: 0 0.5rem;
+    }
+
+    .manga-title {
+        font-size: 0.9rem;
+        max-width: 100%;
+        text-align: left;
+    }
+
+    .chapter-number {
+        font-size: 0.75rem;
+    }
+
+    /* Hide fancy sync status text on mobile, just show icon or compact it */
+    .sync-status span:not(.sync-icon) {
+        display: none;
+    }
+
+    .sync-status {
+        padding: 0.4rem;
+        gap: 0;
+    }
+
+    .mode-select {
+        padding: 0.4rem;
+        font-size: 0.75rem;
+        max-width: 100px;
+    }
+
+    /* Bottom Controls */
+    .reader-controls-bottom {
+        padding: 0.75rem 1rem;
+        gap: 0.5rem;
+        grid-template-columns: auto 1fr auto;
+        /* Prev - Pages - Next */
+        justify-items: center;
+    }
+
+    .control-group.center {
+        width: 100%;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+
+    .control-group.left,
+    .control-group.right {
+        /* On mobile, we might want to hide these side groups or merge them */
+        display: none;
+    }
+
+    /* We need Chapter Nav (Prev/Next Chapter) to be accessible */
+    /* Let's make the center group contain [Prev Ch] [Page x/y] [Next Ch] */
+
+    .page-indicator {
+        font-size: 0.8rem;
+        padding: 0.4rem 0.8rem;
+        white-space: nowrap;
+    }
+
+    .chapter-nav-btn {
+        padding: 0.5rem 0.8rem;
+        font-size: 0.8rem;
+    }
+
+    /* Nav Area (Left/Right invisible buttons) - keep them for redundancy or hide if tap zones work well */
+    /* The CSS for .nav-area sets width 15%, which is fine. */
+
+    /* Vertical Mode Fit */
+    .reader-content.vertical .vertical-scroll {
+        width: 100%;
+        max-width: 100%;
+        /* Ensure full width on mobile */
+        padding: 0;
+    }
+
+    .reader-content.vertical .page-image {
+        width: 100% !important;
+        /* Force full width */
+        max-width: 100% !important;
+    }
 }

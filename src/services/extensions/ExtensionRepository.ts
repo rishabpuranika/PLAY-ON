@@ -33,10 +33,7 @@ class ExtensionRepositoryService {
                 this.repos = JSON.parse(saved);
             }
 
-            // Auto-add default repo if no repos exist (Skip on mobile)
-            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-
-            if (this.repos.length === 0 && !isMobile) {
+            if (this.repos.length === 0) {
                 console.log('[ExtensionRepository] No repos found, adding default repository');
                 this.repos.push({
                     url: DEFAULT_REPO_URL,

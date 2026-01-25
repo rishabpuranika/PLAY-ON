@@ -5,18 +5,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 // Manages all application settings with localStorage persistence
 // ============================================================================
 
-// Keyboard shortcut action IDs
-export type ShortcutAction =
-    | 'searchAnime'
-    | 'searchManga'
-    | 'goHome'
-    | 'goAnimeList'
-    | 'goMangaList'
-    | 'goSettings'
-    | 'goProfile'
-    | 'goBack'
-    | 'goForward'
-    | 'escape';
+
 
 export interface Settings {
     // General
@@ -33,9 +22,7 @@ export interface Settings {
     discordPrivacyLevel: 'full' | 'minimal' | 'hidden';
     anilistAutoSync: boolean;
 
-    // Window Behavior
-    closeToTray: boolean; // When true, close button minimizes to tray; when false, quits app
-    startMinimized: boolean; // When true, app starts minimized to tray
+
 
     // Storage
     scanDepth: number;
@@ -49,21 +36,25 @@ export interface Settings {
     // Advanced
     developerMode: boolean;
 
-    // Keyboard Shortcuts
-    keyboardShortcuts: Record<ShortcutAction, string>;
+    // Gestures
+    gestures: Record<GestureAction, GestureType>;
 }
 
-export const DEFAULT_KEYBOARD_SHORTCUTS: Record<ShortcutAction, string> = {
-    searchAnime: 'Ctrl+A',
-    searchManga: 'Ctrl+M',
-    goHome: 'Ctrl+H',
-    goAnimeList: 'Ctrl+Shift+A',
-    goMangaList: 'Ctrl+Shift+M',
-    goSettings: 'Ctrl+,',
-    goProfile: 'Ctrl+P',
-    goBack: 'Alt+ArrowLeft',
-    goForward: 'Alt+ArrowRight',
-    escape: 'Escape',
+export type GestureAction =
+    | 'goBack'
+    | 'goForward'
+    | 'toggleUI';
+
+export type GestureType =
+    | 'swipeRight'
+    | 'swipeLeft'
+    | 'doubleTap'
+    | 'none';
+
+export const DEFAULT_GESTURES: Record<GestureAction, GestureType> = {
+    goBack: 'swipeRight',
+    goForward: 'swipeLeft',
+    toggleUI: 'doubleTap'
 };
 
 const DEFAULT_SETTINGS: Settings = {
@@ -81,10 +72,6 @@ const DEFAULT_SETTINGS: Settings = {
     discordPrivacyLevel: 'full',
     anilistAutoSync: true,
 
-    // Window Behavior
-    closeToTray: true, // Default: minimize to tray on close
-    startMinimized: false, // Default: show window on startup
-
     // Storage
     scanDepth: 3,
     ignoredTerms: ['SAMPLE', 'Creditless', 'NCOP', 'NCED', 'Preview'],
@@ -97,8 +84,8 @@ const DEFAULT_SETTINGS: Settings = {
     // Advanced
     developerMode: false,
 
-    // Keyboard Shortcuts
-    keyboardShortcuts: { ...DEFAULT_KEYBOARD_SHORTCUTS },
+    // Gestures
+    gestures: { ...DEFAULT_GESTURES },
 };
 
 interface SettingsContextType {
@@ -125,18 +112,17 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
             try {
                 const parsed = JSON.parse(saved);
 
-                // Deep merge keyboardShortcuts to ensure new shortcuts (like goProfile) are added
-                // even if the user has saved settings from a previous version
-                const mergedShortcuts = {
-                    ...DEFAULT_SETTINGS.keyboardShortcuts,
-                    ...(parsed.keyboardShortcuts || {})
+                // Deep merge gestures
+                const mergedGestures = {
+                    ...DEFAULT_SETTINGS.gestures,
+                    ...(parsed.gestures || {})
                 };
 
-                // Merge with defaults to handle new settings added in updates
+                // Merge with defaults
                 setSettings({
                     ...DEFAULT_SETTINGS,
                     ...parsed,
-                    keyboardShortcuts: mergedShortcuts
+                    gestures: mergedGestures
                 });
             } catch (e) {
                 console.error('Failed to parse saved settings:', e);
