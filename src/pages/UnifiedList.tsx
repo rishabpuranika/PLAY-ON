@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, forwardRef, useRef } from 'react';
+import { useState, useEffect, useMemo, forwardRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@apollo/client';
 import AnimeCard from '../components/ui/AnimeCard';
@@ -49,7 +49,8 @@ const GridListContainer = forwardRef(({ style, children, ...props }: any, ref) =
         ref={ref}
         {...props}
         style={style}
-        className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 pb-20"
+        // Mobile: 3 columns, tight packing.
+        className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-2 sm:gap-6 pb-20"
     >
         {children}
     </div>
@@ -84,11 +85,8 @@ function UnifiedList() {
 
     const [viewMode, setViewMode] = useState<'grid' | 'list' | 'graph'>('grid');
     const [searchQuery, setSearchQuery] = useState('');
-    const [isSearchHovered, setIsSearchHovered] = useState(false);
     const [isSearchFocused, setIsSearchFocused] = useState(false);
     const [selectedStatus, setSelectedStatus] = useState<ListStatus>('All');
-
-    const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Initial load from URL
     useEffect(() => {
@@ -191,19 +189,7 @@ function UnifiedList() {
         }
     };
 
-    const handleMouseEnter = () => {
-        if (hoverTimeoutRef.current) {
-            clearTimeout(hoverTimeoutRef.current);
-            hoverTimeoutRef.current = null;
-        }
-        setIsSearchHovered(true);
-    };
 
-    const handleMouseLeave = () => {
-        hoverTimeoutRef.current = setTimeout(() => {
-            setIsSearchHovered(false);
-        }, 150);
-    };
 
     if (!isAuthenticated) {
         return (
@@ -215,55 +201,53 @@ function UnifiedList() {
     }
 
     return (
-        <div className="max-w-[1600px] mx-auto pb-10 px-6 min-h-screen">
+        <div className="max-w-[1600px] mx-auto pb-10 px-2 sm:px-6 min-h-screen">
             {/* Header / Stats Bar */}
-            <div className="sticky top-[-28px] z-30 mx-auto w-full max-w-[950px] h-[52px] relative flex items-center justify-center pointer-events-none -mt-4 mb-4">
+            <div className="mx-auto w-full max-w-[950px] relative flex flex-col sm:block items-center justify-center -mt-2 mb-4 sm:-mt-4 sm:mb-4 gap-2">
 
                 {/* Search Island */}
                 <div
-                    className="absolute left-4 pointer-events-auto group backdrop-blur-2xl rounded-full shadow-2xl h-[52px] flex items-center transition-all duration-300 w-[52px] hover:w-[300px] focus-within:w-[300px] overflow-hidden"
+                    className="relative sm:absolute left-0 sm:left-4 pointer-events-auto group backdrop-blur-md rounded-full shadow-lg h-[42px] sm:h-[46px] flex items-center gap-2 pl-3 pr-4 transition-all duration-300 ease-out hover:bg-white/[0.07] focus-within:bg-white/10"
                     style={{
-                        backgroundColor: 'var(--theme-bg-glass)',
-                        border: '1px solid var(--theme-border-highlight)'
+                        backgroundColor: 'var(--color-bg-glass)',
+                        border: '1px solid rgba(255,255,255,0.05)',
+                        borderRadius: '100px'
                     }}
-                    onMouseEnter={handleMouseEnter}
-                    onMouseLeave={handleMouseLeave}
                 >
-                    <div
-                        className="absolute left-0 top-0 w-[52px] h-full flex items-center justify-center transition-colors pointer-events-none"
-                        style={{ color: 'var(--theme-text-muted)' }}
-                    >
-                        <SearchIcon size={20} />
+                    <div className="text-white/40 flex items-center justify-center">
+                        <SearchIcon size={18} />
                     </div>
+
+                    <div className="h-4 w-px bg-white/10 mx-1" />
+
                     <input
                         type="text"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         onFocus={() => setIsSearchFocused(true)}
                         onBlur={() => setIsSearchFocused(false)}
-                        placeholder={isSearchHovered || isSearchFocused ? `Search ${listType}...` : ''}
-                        className="w-full h-full bg-transparent border-none outline-none text-sm font-medium pl-14 pr-4 cursor-pointer focus:cursor-text"
+                        placeholder={`Search ${listType}...`}
+                        className="bg-transparent border-none outline-none text-sm font-medium w-full sm:w-48 text-white placeholder-white/30"
                         style={{
                             fontFamily: 'var(--font-rounded)',
                             color: 'var(--theme-text-main)',
-                            paddingLeft: '3.5rem' // Force padding to prevent icon overlap
                         }}
                     />
                 </div>
 
                 {/* Filters Island */}
                 <div
-                    className="absolute right-4 top-0 pointer-events-auto flex flex-wrap items-center justify-between gap-4 py-2 px-3 backdrop-blur-2xl rounded-full shadow-2xl transition-all duration-300"
+                    className="relative sm:absolute right-0 sm:right-4 top-0 pointer-events-auto flex scrollbar-hide overflow-x-auto w-full sm:w-auto items-center justify-start sm:justify-between gap-2 sm:gap-4 py-2 px-3 backdrop-blur-2xl rounded-xl sm:rounded-full shadow-2xl transition-all duration-300"
                     style={{
                         backgroundColor: 'var(--theme-bg-glass)',
                         border: '1px solid var(--theme-border-subtle)'
                     }}
                 >
                     {/* Status Buttons */}
-                    <div className="flex flex-wrap items-center gap-1">
+                    <div className="flex flex-nowrap items-center gap-1 min-w-max">
                         {(['All', 'Current', 'Completed', 'Paused', 'Dropped', 'Planning'] as ListStatus[]).map((status) => {
                             // Only compact filters if search has text or is focused (prevent glitching on simple hover)
-                            const isCompact = searchQuery || isSearchHovered || isSearchFocused;
+                            const isCompact = searchQuery || isSearchFocused;
                             // Map 'Current' to 'Watching' or 'Reading' for display
                             let displayLabel: string = status;
                             if (status === 'Current') displayLabel = listType === 'anime' ? 'Watching' : 'Reading';

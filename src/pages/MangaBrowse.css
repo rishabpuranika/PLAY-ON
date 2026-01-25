@@ -148,6 +148,13 @@
     gap: 1.5rem;
 }
 
+@media (max-width: 768px) {
+    .manga-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.5rem;
+    }
+}
+
 .manga-card {
     cursor: pointer;
     transition: transform 0.2s;

@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
-import { open } from '@tauri-apps/plugin-dialog';
+import { pickDirectory } from '../lib/fileSystem';
+
 import { useSettings } from '../context/SettingsContext';
 import { useTheme } from '../context/ThemeContext';
 import { useAuthContext } from '../context/AuthContext';
@@ -423,13 +424,9 @@ function MangaSettings() {
                         />
                         <button className="setting-button" onClick={async () => {
                             try {
-                                const selected = await open({
-                                    directory: true,
-                                    multiple: false,
-                                    defaultPath: settings.mangaDownloadPath || undefined,
-                                });
+                                const selected = await pickDirectory('Select download path');
                                 if (selected) {
-                                    updateSetting('mangaDownloadPath', selected as string);
+                                    updateSetting('mangaDownloadPath', selected);
                                 }
                             } catch (err) {
                                 console.error("Failed to open dialog", err);
@@ -573,7 +570,7 @@ function MangaSettings() {
 // ============================================================================
 
 function StorageSettings() {
-    const { animeFolders, mangaFolders, addFolder, removeFolder } = useLocalMedia();
+    const { animeFolders, mangaFolders, addFolder, removeFolder, setupDefaultLibrary } = useLocalMedia();
 
     return (
         <div className="settings-section">
@@ -581,6 +578,20 @@ function StorageSettings() {
             <p className="settings-section-description">
                 Manage your local media locations
             </p>
+
+            <div className="setting-group" style={{ marginBottom: '24px', padding: '16px', background: 'var(--theme-accent-primary-dim)', borderRadius: '12px', border: '1px solid var(--theme-accent-primary)' }}>
+                <h3 className="setting-group-title" style={{ color: 'var(--theme-accent-primary)' }}>Quick Setup</h3>
+                <p className="settings-section-description" style={{ marginBottom: '12px' }}>
+                    Automatically create 'PLAY-ON' folder structure with anime/manga subfolders.
+                </p>
+                <button
+                    className="setting-button primary"
+                    style={{ width: '100%', justifyContent: 'center', background: 'var(--theme-accent-primary)', color: 'white' }}
+                    onClick={setupDefaultLibrary}
+                >
+                    Create Default Library (Documents)
+                </button>
+            </div>
 
             <div className="setting-group">
                 <h3 className="setting-group-title">Anime Folders</h3>

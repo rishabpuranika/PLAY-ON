@@ -1,10 +1,10 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 
 // Platform-specific window detection modules
-#[cfg(windows)]
+#[cfg(all(desktop, windows))]
 mod win_name;
 
-#[cfg(target_os = "macos")]
+#[cfg(all(desktop, target_os = "macos"))]
 mod mac_name;
 
 // Import the media_player module
@@ -23,14 +23,16 @@ mod downloader;
 mod myanimelist;
 
 // Platform-conditional imports for unified interface
-#[cfg(windows)]
+#[cfg(all(desktop, windows))]
 use win_name as platform_window;
 
-#[cfg(target_os = "macos")]
+#[cfg(all(desktop, target_os = "macos"))]
 use mac_name as platform_window;
 
 use std::net::{IpAddr, SocketAddr};
 use std::str::FromStr;
+
+#[cfg(desktop)]
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
@@ -38,13 +40,6 @@ use tauri::{
 use tauri::{Emitter, Manager};
 
 /// Tauri command to search for anime on AniList
-///
-/// # Arguments
-/// * `query` - Search query (anime title)
-/// * `limit` - Maximum number of results (default: 10)
-///
-/// # Returns
-/// * JSON string with array of anime results
 #[tauri::command]
 async fn search_anime_command(query: String, limit: Option<i32>) -> Result<String, String> {
     let results = anilist::search_anime(&query, limit.unwrap_or(10)).await?;
@@ -52,12 +47,6 @@ async fn search_anime_command(query: String, limit: Option<i32>) -> Result<Strin
 }
 
 /// Tauri command to get anime details by ID
-///
-/// # Arguments
-/// * `id` - AniList anime ID
-///
-/// # Returns
-/// * JSON string with anime details
 #[tauri::command]
 async fn get_anime_by_id_command(id: i32) -> Result<String, String> {
     let anime = anilist::get_anime_by_id(id).await?;
@@ -65,71 +54,78 @@ async fn get_anime_by_id_command(id: i32) -> Result<String, String> {
 }
 
 /// Tauri command to match anime from window title
-/// This combines media detection with AniList search
-///
-/// # Returns
-/// * JSON string with matched anime or null if no match
+/// (Desktop Only logic mocked for Mobile)
 #[tauri::command]
 async fn match_anime_from_window_command() -> Result<String, String> {
-    // Get active window title
-    let title = match platform_window::get_active_window_title() {
-        Some(t) => t,
-        None => return Ok("null".to_string()),
-    };
+    #[cfg(desktop)]
+    {
+        // Get active window title
+        let title = match platform_window::get_active_window_title() {
+            Some(t) => t,
+            None => return Ok("null".to_string()),
+        };
 
-    // Check if it's a media player
-    if media_player::detect_media_player(&title).is_none() {
-        return Ok("null".to_string());
+        // Check if it's a media player
+        if media_player::detect_media_player(&title).is_none() {
+            return Ok("null".to_string());
+        }
+
+        // Try to match with AniList
+        let anime = anilist::match_anime_from_title(&title).await?;
+        serde_json::to_string(&anime).map_err(|e| format!("Serialization error: {}", e))
     }
-
-    // Try to match with AniList
-    let anime = anilist::match_anime_from_title(&title).await?;
-    serde_json::to_string(&anime).map_err(|e| format!("Serialization error: {}", e))
+    #[cfg(mobile)]
+    {
+        Ok("null".to_string())
+    }
 }
 
 /// Tauri command to get the currently active window title
-/// Returns the window title as a String, or "No active window" if none found
-///
-/// NOTE: This returns ALL windows, not just media players
-/// Use get_active_media_window for filtered results
 #[tauri::command]
 fn get_active_window() -> String {
-    platform_window::get_active_window_title().unwrap_or_else(|| "No active window".to_string())
+    #[cfg(desktop)]
+    {
+        platform_window::get_active_window_title().unwrap_or_else(|| "No active window".to_string())
+    }
+    #[cfg(mobile)]
+    {
+        "Mobile App".to_string()
+    }
 }
 
 /// Tauri command to get active media player window
-/// Returns JSON with player type and title, or "No media playing" if not a media player
-///
-/// This filters out non-media windows (VS Code, File Explorer, etc.)
-/// Only returns data for known media players
 #[tauri::command]
 fn get_active_media_window() -> String {
-    use media_player::detect_media_player;
+    #[cfg(desktop)]
+    {
+        use media_player::detect_media_player;
+        // Get active window title
+        let title = match platform_window::get_active_window_title() {
+            Some(t) => {
+                println!("[DEBUG] Active window title: {:?}", t);
+                t
+            }
+            None => {
+                println!("[DEBUG] No active window found");
+                return "No active window".to_string();
+            }
+        };
 
-    // Get active window title
-    let title = match platform_window::get_active_window_title() {
-        Some(t) => {
-            println!("[DEBUG] Active window title: {:?}", t);
-            t
+        // Check if it's a media player
+        match detect_media_player(&title) {
+            Some(player) => {
+                println!("[DEBUG] Detected media player: {:?}", player);
+                format!("{:?}: {}", player, title)
+            }
+            None => {
+                println!("[DEBUG] Not a media player: {}", title);
+                "No media playing".to_string()
+            }
         }
-        None => {
-            println!("[DEBUG] No active window found");
-            return "No active window".to_string();
-        }
-    };
-
-    // Check if it's a media player
-    match detect_media_player(&title) {
-        Some(player) => {
-            println!("[DEBUG] Detected media player: {:?}", player);
-            // Return structured info
-            format!("{:?}: {}", player, title)
-        }
-        None => {
-            println!("[DEBUG] Not a media player: {}", title);
-            // Not a media player - ignore
-            "No media playing".to_string()
-        }
+    }
+    #[cfg(mobile)]
+    {
+        "No media playing".to_string()
     }
 }
 
@@ -146,12 +142,6 @@ async fn exchange_login_code(
 }
 
 /// Tauri command to parse a window title and extract anime info
-///
-/// # Arguments
-/// * `window_title` - The window title to parse
-///
-/// # Returns
-/// * JSON string with parsed title, episode, and season
 #[tauri::command]
 fn parse_window_title_command(window_title: String) -> String {
     let parsed = title_parser::parse_window_title(&window_title);
@@ -159,7 +149,6 @@ fn parse_window_title_command(window_title: String) -> String {
 }
 
 /// Simple in-memory cache for AniList lookups
-/// This prevents hammering the API with repeated lookups for the same title
 use std::collections::HashMap;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
@@ -198,100 +187,56 @@ fn set_cached_anime(title: String, anime: Option<anilist::Anime>) {
 }
 
 /// Tauri command to detect anime from the current media player window
-/// Combines: media detection → title parsing → AniList search (with caching)
-///
-/// # Returns
-/// * JSON with detected anime info including parsed title, episode, and matched AniList entry
 #[tauri::command]
 async fn detect_anime_command() -> Result<String, String> {
-    use serde_json::json;
+    #[cfg(desktop)]
+    {
+        use serde_json::json;
 
-    // Helper function to search with caching
-    async fn search_with_cache(title: &str) -> Option<anilist::Anime> {
-        // Check cache first
-        if let Some(cached) = get_cached_anime(title) {
-            println!("[Detection] Cache hit for: {}", title);
-            return cached;
-        }
-
-        // Not in cache, make API call
-        println!("[Detection] Cache miss, searching AniList for: {}", title);
-        let result = match anilist::search_anime(title, 1).await {
-            Ok(results) => results.into_iter().next(),
-            Err(e) => {
-                println!("[Detection] AniList search error: {}", e);
-                None
+        // Helper function to search with caching
+        async fn search_with_cache(title: &str) -> Option<anilist::Anime> {
+            // Check cache first
+            if let Some(cached) = get_cached_anime(title) {
+                println!("[Detection] Cache hit for: {}", title);
+                return cached;
             }
-        };
 
-        // Cache the result (even if None)
-        set_cached_anime(title.to_string(), result.clone());
-        result
-    }
-
-    // 1. Try active window first
-    let active_title = platform_window::get_active_window_title();
-    println!("[Detection] Active window title: {:?}", active_title);
-
-    if let Some(ref window_title) = active_title {
-        let player_result = media_player::detect_media_player(window_title);
-        println!("[Detection] Media player detected: {:?}", player_result);
-
-        if let Some(player) = player_result {
-            let parsed = title_parser::parse_window_title(window_title);
-            println!(
-                "[Detection] Parsed result: title={:?}, episode={:?}",
-                parsed.title, parsed.episode
-            );
-
-            let anime_match = if let Some(ref title) = parsed.title {
-                search_with_cache(title).await
-            } else {
-                None
+            // Not in cache, make API call
+            println!("[Detection] Cache miss, searching AniList for: {}", title);
+            let result = match anilist::search_anime(title, 1).await {
+                Ok(results) => results.into_iter().next(),
+                Err(e) => {
+                    println!("[Detection] AniList search error: {}", e);
+                    None
+                }
             };
-            println!("[Detection] AniList match found: {}", anime_match.is_some());
 
-            return Ok(json!({
-                "status": "detected",
-                "player": format!("{:?}", player),
-                "window_title": window_title,
-                "parsed": {
-                    "title": parsed.title,
-                    "episode": parsed.episode,
-                    "season": parsed.season
-                },
-                "anilist_match": anime_match
-            })
-            .to_string());
+            // Cache the result (even if None)
+            set_cached_anime(title.to_string(), result.clone());
+            result
         }
-    }
 
-    // 2. If active window isn't a media player, search ALL visible windows
-    let all_titles = platform_window::get_all_visible_window_titles();
-    println!(
-        "[Detection] Fallback: searching {} visible windows",
-        all_titles.len()
-    );
-    for (i, title) in all_titles.iter().enumerate() {
-        println!("[Detection] Window {}: {:?}", i, title);
-    }
+        // 1. Try active window first
+        let active_title = platform_window::get_active_window_title();
+        println!("[Detection] Active window title: {:?}", active_title);
 
-    for window_title in all_titles {
-        if let Some(player) = media_player::detect_media_player(&window_title) {
-            let parsed = title_parser::parse_window_title(&window_title);
-            println!(
-                "[Detection] Fallback found browser: {:?}, parsed title={:?}, ep={:?}",
-                player, parsed.title, parsed.episode
-            );
+        if let Some(ref window_title) = active_title {
+            let player_result = media_player::detect_media_player(window_title);
+            println!("[Detection] Media player detected: {:?}", player_result);
 
-            // Only count as "detected" if we actually parsed a title or episode
-            // This avoids catching empty media player windows
-            if parsed.title.is_some() || parsed.episode.is_some() {
+            if let Some(player) = player_result {
+                let parsed = title_parser::parse_window_title(window_title);
+                println!(
+                    "[Detection] Parsed result: title={:?}, episode={:?}",
+                    parsed.title, parsed.episode
+                );
+
                 let anime_match = if let Some(ref title) = parsed.title {
                     search_with_cache(title).await
                 } else {
                     None
                 };
+                println!("[Detection] AniList match found: {}", anime_match.is_some());
 
                 return Ok(json!({
                     "status": "detected",
@@ -307,32 +252,73 @@ async fn detect_anime_command() -> Result<String, String> {
                 .to_string());
             }
         }
+
+        // 2. If active window isn't a media player, search ALL visible windows
+        let all_titles = platform_window::get_all_visible_window_titles();
+        println!(
+            "[Detection] Fallback: searching {} visible windows",
+            all_titles.len()
+        );
+        for (i, title) in all_titles.iter().enumerate() {
+            println!("[Detection] Window {}: {:?}", i, title);
+        }
+
+        for window_title in all_titles {
+            if let Some(player) = media_player::detect_media_player(&window_title) {
+                let parsed = title_parser::parse_window_title(&window_title);
+                println!(
+                    "[Detection] Fallback found browser: {:?}, parsed title={:?}, ep={:?}",
+                    player, parsed.title, parsed.episode
+                );
+
+                if parsed.title.is_some() || parsed.episode.is_some() {
+                    let anime_match = if let Some(ref title) = parsed.title {
+                        search_with_cache(title).await
+                    } else {
+                        None
+                    };
+
+                    return Ok(json!({
+                        "status": "detected",
+                        "player": format!("{:?}", player),
+                        "window_title": window_title,
+                        "parsed": {
+                            "title": parsed.title,
+                            "episode": parsed.episode,
+                            "season": parsed.season
+                        },
+                        "anilist_match": anime_match
+                    })
+                    .to_string());
+                }
+            }
+        }
+
+        // 3. Fallback
+        let status = if active_title.is_some() {
+            "not_media_player"
+        } else {
+            "no_window"
+        };
+
+        Ok(json!({
+            "status": status,
+            "window": active_title.unwrap_or_default()
+        })
+        .to_string())
     }
-
-    // 3. Fallback
-    let status = if active_title.is_some() {
-        "not_media_player"
-    } else {
-        "no_window"
-    };
-
-    Ok(json!({
-        "status": status,
-        "window": active_title.unwrap_or_default()
-    })
-    .to_string())
+    #[cfg(mobile)]
+    {
+        use serde_json::json;
+        Ok(json!({
+            "status": "not_supported_on_mobile",
+            "window": "Mobile App"
+        })
+        .to_string())
+    }
 }
 
 /// Tauri command to update anime progress on AniList
-///
-/// # Arguments
-/// * `access_token` - OAuth access token
-/// * `media_id` - AniList media ID
-/// * `progress` - Episode number
-/// * `status` - Optional status (CURRENT, COMPLETED, etc.)
-///
-/// # Returns
-/// * JSON with updated entry or error
 #[tauri::command]
 async fn update_anime_progress_command(
     access_token: String,
@@ -346,14 +332,7 @@ async fn update_anime_progress_command(
     serde_json::to_string(&entry).map_err(|e| format!("Serialization error: {}", e))
 }
 
-/// Tauri command to search anime progressively (word by word)
-/// Uses the parsed title and searches AniList starting with 1 word
-///
-/// # Arguments
-/// * `title` - The parsed anime title to search
-///
-/// # Returns
-/// * JSON with the matched anime title and search info
+/// Tauri command to search anime progressively
 #[tauri::command]
 async fn progressive_search_command(title: String) -> Result<String, String> {
     let result = anilist::progressive_search_anime(&title).await?;
@@ -361,15 +340,6 @@ async fn progressive_search_command(title: String) -> Result<String, String> {
 }
 
 /// Tauri command to download a chapter as CBZ
-///
-/// # Arguments
-/// * `chapter_title` - Title of the chapter (e.g., "Chapter 1")
-/// * `manga_title` - Title of the manga
-/// * `urls` - List of image URLs to download
-/// * `download_dir` - Directory to save the file in
-///
-/// # Returns
-/// * Path to the downloaded CBZ file
 #[tauri::command]
 async fn download_chapter_command(
     chapter_title: String,
@@ -401,13 +371,6 @@ lazy_static::lazy_static! {
 }
 
 /// Tauri command to download an image and return local file path
-/// Used for Windows notifications which require local file paths
-///
-/// # Arguments
-/// * `url` - HTTP URL of the image to download
-///
-/// # Returns
-/// * Local file path to the cached image
 #[tauri::command]
 async fn download_image_for_notification(url: String) -> Result<String, String> {
     use std::io::Write;
@@ -478,7 +441,16 @@ fn md5_hash(s: &str) -> u64 {
 #[tauri::command]
 async fn hide_window(app: tauri::AppHandle) -> Result<(), String> {
     if let Some(window) = app.get_webview_window("main") {
+        #[cfg(desktop)]
         window.hide().map_err(|e| e.to_string())?;
+
+        #[cfg(mobile)]
+        {
+            // Mobile cannot hide the window in the desktop sense,
+            // usually this means "minimize to background" which is handled by OS,
+            // or just ignored.
+            println!("[Mobile] hide_window called - ignoring on mobile");
+        }
     }
     Ok(())
 }
@@ -495,8 +467,7 @@ fn mal_generate_pkce() -> (String, String) {
     (verifier, challenge)
 }
 
-/// Complete MAL OAuth flow: starts localhost server, opens browser, waits for callback, exchanges code
-/// Returns JSON with tokens on success
+/// Complete MAL OAuth flow
 #[tauri::command]
 async fn mal_start_oauth_flow(client_id: String) -> Result<String, String> {
     // Generate PKCE
@@ -524,31 +495,42 @@ async fn mal_start_oauth_flow(client_id: String) -> Result<String, String> {
 
     // Open browser - properly escape URL for each platform
     println!("[MAL] Opening browser: {}", auth_url);
-    #[cfg(target_os = "macos")]
+    #[cfg(not(mobile))]
     {
-        let _ = std::process::Command::new("open").arg(&auth_url).spawn();
-    }
-    #[cfg(target_os = "windows")]
-    {
-        use std::os::windows::process::CommandExt;
-        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        #[cfg(target_os = "macos")]
+        {
+            let _ = std::process::Command::new("open").arg(&auth_url).spawn();
+        }
+        #[cfg(target_os = "windows")]
+        {
+            use std::os::windows::process::CommandExt;
+            const CREATE_NO_WINDOW: u32 = 0x08000000;
 
-        // Use PowerShell Start-Process with hidden window
-        let _ = std::process::Command::new("powershell")
-            .args([
-                "-WindowStyle",
-                "Hidden",
-                "-Command",
-                &format!("Start-Process '{}'", auth_url),
-            ])
-            .creation_flags(CREATE_NO_WINDOW)
-            .spawn();
+            // Use PowerShell Start-Process with hidden window
+            let _ = std::process::Command::new("powershell")
+                .args([
+                    "-WindowStyle",
+                    "Hidden",
+                    "-Command",
+                    &format!("Start-Process '{}'", auth_url),
+                ])
+                .creation_flags(CREATE_NO_WINDOW)
+                .spawn();
+        }
+        #[cfg(target_os = "linux")]
+        {
+            let _ = std::process::Command::new("xdg-open")
+                .arg(&auth_url)
+                .spawn();
+        }
     }
-    #[cfg(target_os = "linux")]
+
+    // Mobile: use URL launcher from plugin
+    #[cfg(mobile)]
     {
-        let _ = std::process::Command::new("xdg-open")
-            .arg(&auth_url)
-            .spawn();
+        // Should use tauri_plugin_opener or verify open is available
+        // For now just error as MAL localhost flow doesn't work well on mobile without deep links
+        return Err("MAL OAuth local server flow not supported on mobile".to_string());
     }
 
     // Wait for the code from the callback server
@@ -677,48 +659,60 @@ async fn mal_get_manga_list(
 }
 
 /// Open a new browser window with the given URL
-/// This creates a native WebView window that behaves like a real browser,
-/// bypassing iframe restrictions that block embedded content
 #[tauri::command]
 async fn open_browser_window(
     app: tauri::AppHandle,
     url: String,
     title: String,
 ) -> Result<String, String> {
-    use tauri::WebviewUrl;
-    use tauri::WebviewWindowBuilder;
+    #[cfg(desktop)]
+    {
+        use tauri::WebviewUrl;
+        use tauri::WebviewWindowBuilder;
 
-    println!("[Browser] Opening native window for: {}", url);
+        println!("[Browser] Opening native window for: {}", url);
 
-    // Create a unique window label based on timestamp
-    let window_label = format!(
-        "browser_{}",
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_millis()
-    );
+        // Create a unique window label based on timestamp
+        let window_label = format!(
+            "browser_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_millis()
+        );
 
-    // Create the webview window
-    let _window = WebviewWindowBuilder::new(
-        &app,
-        &window_label,
-        WebviewUrl::External(url.parse().map_err(|e| format!("Invalid URL: {}", e))?),
-    )
-    .title(&title)
-    .inner_size(1280.0, 800.0)
-    .center()
-    .resizable(true)
-    .build()
-    .map_err(|e| format!("Failed to create window: {}", e))?;
+        // Create the webview window
+        let _window = WebviewWindowBuilder::new(
+            &app,
+            &window_label,
+            WebviewUrl::External(url.parse().map_err(|e| format!("Invalid URL: {}", e))?),
+        )
+        .title(&title)
+        .inner_size(1280.0, 800.0)
+        .center()
+        .resizable(true)
+        .build()
+        .map_err(|e| format!("Failed to create window: {}", e))?;
 
-    println!("[Browser] Created window: {}", window_label);
+        println!("[Browser] Created window: {}", window_label);
 
-    Ok(format!("Opened {} in new window", title))
+        Ok(format!("Opened {} in new window", title))
+    }
+    #[cfg(mobile)]
+    {
+        // On mobile, just open the URL in the system browser
+        // using the opener plugin which is already registered
+        // Or if we need a separate view, mobile usually pushes a new screen.
+        // For simplicity, let's just open system browser for now or return error
+        use tauri_plugin_opener::OpenerExt;
+        app.opener()
+            .open_url(url, None::<&str>)
+            .map_err(|e| e.to_string())?;
+        Ok("Opened in system browser".to_string())
+    }
 }
 
 /// Proxy video stream requests to bypass CORS and inject headers
-/// Uses DoH to bypass ISP blocks
 #[tauri::command]
 async fn stream_proxy(
     url: String,
@@ -783,7 +777,6 @@ async fn resolve_host(host: &str) -> Option<IpAddr> {
 }
 
 /// Generic proxy request command with DoH support
-/// Used by extensions to bypass ISP blocks
 #[tauri::command]
 async fn proxy_request(
     method: String,
@@ -842,22 +835,25 @@ async fn proxy_request(
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default()
         .plugin(tauri_plugin_notification::init())
-        .plugin(tauri_plugin_drpc::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_shell::init())
-        .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_fs::init());
+
+    #[cfg(desktop)]
+    let builder = builder
+        .plugin(tauri_plugin_drpc::init())
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             Some(vec!["--minimized"]),
         ))
         .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
-            println!("{}, {argv:?}, {_cwd}", app.package_info().name);
+            println!("{}, {:?}, {}", app.package_info().name, argv, _cwd);
 
             app.emit("single-instance", argv.clone()).unwrap();
 
@@ -871,7 +867,9 @@ pub fn run() {
                     }
                 }
             }
-        }))
+        }));
+
+    builder
         .invoke_handler(tauri::generate_handler![
             get_active_window,
             get_active_media_window,
@@ -917,83 +915,78 @@ pub fn run() {
                 app.deep_link().register_all()?;
             }
 
-            // === System Tray Setup ===
-            // Create tray menu items
-            let show_item = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
-            let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
+            // === System Tray & Desktop specific Setup ===
+            #[cfg(desktop)]
+            {
+                // Create tray menu items
+                let show_item = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
+                let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
 
-            // Create the tray menu
-            let menu = Menu::with_items(app, &[&show_item, &quit_item])?;
+                // Create the tray menu
+                let menu = Menu::with_items(app, &[&show_item, &quit_item])?;
 
-            // Build the tray icon
-            let _tray = TrayIconBuilder::new()
-                .icon(app.default_window_icon().unwrap().clone())
-                .menu(&menu)
-                .show_menu_on_left_click(false)
-                .on_menu_event(|app, event| match event.id.as_ref() {
-                    "show" => {
-                        if let Some(window) = app.get_webview_window("main") {
-                            let _ = window.show();
-                            let _ = window.set_focus();
+                // Build the tray icon
+                let _tray = TrayIconBuilder::new()
+                    .icon(app.default_window_icon().unwrap().clone())
+                    .menu(&menu)
+                    .show_menu_on_left_click(false)
+                    .on_menu_event(|app, event| match event.id.as_ref() {
+                        "show" => {
+                            if let Some(window) = app.get_webview_window("main") {
+                                let _ = window.show();
+                                let _ = window.set_focus();
+                            }
                         }
-                    }
-                    "quit" => {
-                        app.exit(0);
-                    }
-                    _ => {}
-                })
-                .on_tray_icon_event(|tray, event| {
-                    // Show window on left click
-                    if let TrayIconEvent::Click {
-                        button: MouseButton::Left,
-                        button_state: MouseButtonState::Up,
-                        ..
-                    } = event
-                    {
-                        if let Some(window) = tray.app_handle().get_webview_window("main") {
-                            let _ = window.show();
-                            let _ = window.set_focus();
+                        "quit" => {
+                            app.exit(0);
                         }
+                        _ => {}
+                    })
+                    .on_tray_icon_event(|tray, event| {
+                        // Show window on left click
+                        if let TrayIconEvent::Click {
+                            button: MouseButton::Left,
+                            button_state: MouseButtonState::Up,
+                            ..
+                        } = event
+                        {
+                            if let Some(window) = tray.app_handle().get_webview_window("main") {
+                                let _ = window.show();
+                                let _ = window.set_focus();
+                            }
+                        }
+                    })
+                    .build(app)?;
+
+                // Window starts hidden by default (set in tauri.conf.json)
+                // Show the window only if NOT started with --minimized flag (from autostart)
+                let args: Vec<String> = std::env::args().collect();
+                let start_minimized = args.iter().any(|arg| arg == "--minimized");
+
+                if start_minimized {
+                    println!(
+                        "[Startup] Started with --minimized flag, keeping window hidden in tray"
+                    );
+                    // Window is already hidden from config, nothing to do
+                } else {
+                    println!("[Startup] Normal startup, showing window");
+                    if let Some(window) = app.get_webview_window("main") {
+                        let _ = window.show();
+                        let _ = window.set_focus();
                     }
-                })
-                .build(app)?;
-
-            // Window starts hidden by default (set in tauri.conf.json)
-            // Show the window only if NOT started with --minimized flag (from autostart)
-            let args: Vec<String> = std::env::args().collect();
-            let start_minimized = args.iter().any(|arg| arg == "--minimized");
-
-            if start_minimized {
-                println!("[Startup] Started with --minimized flag, keeping window hidden in tray");
-                // Window is already hidden from config, nothing to do
-            } else {
-                println!("[Startup] Normal startup, showing window");
-                if let Some(window) = app.get_webview_window("main") {
-                    let _ = window.show();
-                    let _ = window.set_focus();
                 }
             }
-
             Ok(())
         })
         .register_uri_scheme_protocol("manga", |_app, request| {
             let url = request.uri().to_string();
             println!("[Protocol] Manga Handler called for: {}", url);
+
             // Format: manga://localhost/path/to/file.cbz/page.jpg
-            // The path might be URL encoded, so we need to decode it.
-
-            // Typical URL: manga://localhost/E%3A%2FBooks%2FManga.cbz/001.jpg
-
             // 1. Strip scheme and host
             let path_and_query = url.replace("manga://localhost/", "");
 
             // 2. Split into file path and page name
-            // The last slash separates the file path from the page name?
-            // NO, the user might have slashes in the page name (subfolders in zip).
-            // BUT, our frontend encodes the file path as a single segment.
-
-            // Let's assume the frontend sends: manga://localhost/<encoded_file_path>/<encoded_page_name>
-
             let segments: Vec<&str> = path_and_query.split('/').collect();
             if segments.len() < 2 {
                 return tauri::http::Response::builder()
@@ -1003,7 +996,7 @@ pub fn run() {
             }
 
             let encoded_path = segments[0];
-            // The rest is the page name (might handle subfolders later, but for now assuming flattened or encoded)
+            // The rest is the page name
             let encoded_page = segments[1..].join("/");
 
             let decoded_path = match urlencoding::decode(encoded_path) {

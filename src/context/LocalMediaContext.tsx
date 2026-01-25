@@ -1,5 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { open } from '@tauri-apps/plugin-dialog';
+import { pickDirectory } from '../lib/fileSystem';
+
+import { mkdir, exists } from '@tauri-apps/plugin-fs';
+import { documentDir, join } from '@tauri-apps/api/path';
 
 export interface LocalFolder {
     path: string;
@@ -11,6 +14,7 @@ interface LocalMediaContextType {
     folders: LocalFolder[];
     addFolder: (type: 'anime' | 'manga') => Promise<void>;
     removeFolder: (path: string) => void;
+    setupDefaultLibrary: () => Promise<void>;
     animeFolders: LocalFolder[];
     mangaFolders: LocalFolder[];
 }
@@ -53,16 +57,11 @@ export function LocalMediaProvider({ children }: { children: React.ReactNode }) 
 
     const addFolder = async (type: 'anime' | 'manga') => {
         try {
-            const selected = await open({
-                directory: true,
-                multiple: false,
-                recursive: true,
-                title: `Select a ${type} folder to add`
-            });
+            const selected = await pickDirectory(`Select a ${type} folder to add`);
 
             if (selected) {
                 // If user selected a directory, it comes as a string (or array if multiple, but we set multiple:false)
-                const path = selected as string;
+                const path = selected;
                 // Extract last part of path as label (simple heuristic)
                 // Handle both windows and unix separators
                 const name = path.split(/[\\/]/).pop() || path;
@@ -88,11 +87,69 @@ export function LocalMediaProvider({ children }: { children: React.ReactNode }) 
         setFolders(prev => prev.filter(f => f.path !== path));
     };
 
+    const setupDefaultLibrary = async () => {
+        try {
+            // Simplify flow: specific automation requested by user
+            // We interpret "automatically selected" as using the standard Documents location
+
+            let root: string | null = null;
+
+            // Try standard Documents folder first (Automatic mode)
+            try {
+                root = await documentDir();
+            } catch (e) {
+                console.warn("Could not get documentDir, falling back to picker", e);
+            }
+
+            // Fallback if documentDir fails (e.g. some environments)
+            if (!root) {
+                root = await pickDirectory("Select where to create 'PLAY-ON' library");
+            }
+            if (!root) return;
+
+            const baseDir = await join(root, 'PLAY-ON');
+            const animeDir = await join(baseDir, 'anime');
+            const mangaDir = await join(baseDir, 'manga');
+
+            // Create base directory
+            if (!(await exists(baseDir))) {
+                await mkdir(baseDir);
+            }
+
+            // Create subdirectories
+            if (!(await exists(animeDir))) {
+                await mkdir(animeDir);
+            }
+            if (!(await exists(mangaDir))) {
+                await mkdir(mangaDir);
+            }
+
+            // Add to state
+            setFolders(prev => {
+                const newFolders = [...prev];
+                // Check if paths already exist
+                if (!newFolders.some(f => f.path === animeDir)) {
+                    newFolders.push({ path: animeDir, label: 'anime', type: 'anime' });
+                }
+                if (!newFolders.some(f => f.path === mangaDir)) {
+                    newFolders.push({ path: mangaDir, label: 'manga', type: 'manga' });
+                }
+                return newFolders;
+            });
+
+            alert(`Library created successfully in: ${baseDir}`);
+
+        } catch (err) {
+            console.error("Failed to setup library", err);
+            alert("Failed to create folders. Please ensure you have write permissions.");
+        }
+    };
+
     const animeFolders = folders.filter(f => f.type === 'anime' || !f.type);
     const mangaFolders = folders.filter(f => f.type === 'manga');
 
     return (
-        <LocalMediaContext.Provider value={{ folders, addFolder, removeFolder, animeFolders, mangaFolders }}>
+        <LocalMediaContext.Provider value={{ folders, addFolder, removeFolder, setupDefaultLibrary, animeFolders, mangaFolders }}>
             {children}
         </LocalMediaContext.Provider>
     );

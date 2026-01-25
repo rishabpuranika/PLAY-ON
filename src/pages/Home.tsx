@@ -2,6 +2,7 @@ import { useMemo, useCallback, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AnimeCard from '../components/ui/AnimeCard';
 import RefreshButton from '../components/ui/RefreshButton';
+import SearchBar from '../components/ui/SearchBar';
 
 import { useAuth } from '../hooks/useAuth';
 import { useQuery } from '@apollo/client';
@@ -349,6 +350,11 @@ function Home() {
     return (
         <div className="h-full flex flex-col" style={{ maxWidth: '1800px', margin: '0 auto', height: 'calc(100vh - 120px)' }}>
             <div className="flex flex-col gap-6 pb-2 px-2 overflow-y-auto">
+                {/* Search Bar (Mobile/Desktop Home Only) */}
+                <div className="w-full">
+                    <SearchBar />
+                </div>
+
                 {/* Lists Row - Force side-by-side on LG screens (1024px+) to fit 1200px window */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 shrink-0 focus-mode">
 
@@ -387,12 +393,12 @@ function Home() {
                         ) : animeList.length > 0 ? (
                             <FadeIn className="">
                                 {/* Responsive Grid: 
-                                    - Default (Windowed 1200px): 2 cols (Large posters), 4 items visible
-                                    - Fullscreen (1536px+): 4 cols (Normal posters), 8 items visible ("Bento" style)
+                                    - Default (Windowed 1200px): 3 cols (bigger cards than 4)
+                                    - Fullscreen (1536px+): 4 cols
                                 */}
-                                <div className="grid grid-cols-2 2xl:grid-cols-4 gap-4 2xl:gap-3">
+                                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 2xl:gap-3">
                                     {animeList.slice(0, 8).map((anime: any, index: number) => (
-                                        <div key={anime.id} className={index >= 4 ? 'hidden 2xl:block' : ''}>
+                                        <div key={anime.id} className={index >= 8 ? 'hidden 2xl:block' : ''}>
                                             <AnimeCard
                                                 anime={isAuthenticated ? {
                                                     id: anime.id,
@@ -456,10 +462,10 @@ function Home() {
                                 <SkeletonGrid count={8} />
                             ) : mangaList.length > 0 ? (
                                 <FadeIn className="">
-                                    {/* Responsive Grid: 2 cols (Windowed) -> 4 cols (Fullscreen) */}
-                                    <div className="grid grid-cols-2 2xl:grid-cols-4 gap-4 2xl:gap-3">
+                                    {/* Responsive Grid: 3 cols on mobile */}
+                                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 2xl:gap-3">
                                         {mangaList.slice(0, 8).map((manga: any, index: number) => (
-                                            <div key={manga.id} className={index >= 4 ? 'hidden 2xl:block' : ''}>
+                                            <div key={manga.id} className={index >= 8 ? 'hidden 2xl:block' : ''}>
                                                 <AnimeCard
                                                     anime={{
                                                         id: manga.id,
@@ -617,7 +623,7 @@ function Home() {
                             </h3>
                         </div>
 
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-4">
+                        <div className="grid grid-cols-4 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-2">
                             {filteredRecommendations.map((anime: any) => (
                                 <FadeIn key={anime.id}>
                                     <AnimeCard
@@ -656,7 +662,7 @@ function Home() {
                             </h3>
                         </div>
 
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-4">
+                        <div className="grid grid-cols-4 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-2">
                             {filteredMangaRecommendations.map((manga: any) => (
                                 <FadeIn key={manga.id}>
                                     <AnimeCard

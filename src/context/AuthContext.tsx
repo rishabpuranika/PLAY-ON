@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useRef } from 'r
 import { invoke } from '@tauri-apps/api/core';
 import { fetchCurrentUser } from '../api/anilistClient';
 import { cacheRestoredPromise } from '../lib/apollo';
-import { open } from '@tauri-apps/plugin-shell';
+import { openUrl as open } from '@tauri-apps/plugin-opener';
 import { onOpenUrl } from '@tauri-apps/plugin-deep-link';
 import { listen } from '@tauri-apps/api/event';
 

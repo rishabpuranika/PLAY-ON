@@ -74,7 +74,15 @@ export async function initDiscordRPC(retryCount = 0): Promise<boolean> {
         isConnecting = false;
         console.log('[Discord RPC] Initialized successfully');
         return true;
-    } catch (err) {
+    } catch (err: any) {
+        const errorMsg = String(err);
+        // On mobile, the plugin commands are not registered, causing "Plugin not found"
+        // or "drpc.start not allowed". We should just fail gracefully.
+        if (errorMsg.includes('Plugin not found') || errorMsg.includes('not allowed')) {
+            console.log('[Discord RPC] Skipped (Not supported on this platform)');
+            return false;
+        }
+
         console.error('[Discord RPC] Failed to initialize:', err);
         isConnecting = false;
 

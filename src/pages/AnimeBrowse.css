@@ -154,6 +154,13 @@
     gap: 1.5rem;
 }
 
+@media (max-width: 768px) {
+    .anime-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.5rem;
+    }
+}
+
 .anime-card {
     background: transparent;
     border-radius: 12px;

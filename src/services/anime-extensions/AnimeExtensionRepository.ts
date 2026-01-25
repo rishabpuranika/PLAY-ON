@@ -40,8 +40,10 @@ class AnimeExtensionRepositoryService {
                 this.repos = JSON.parse(saved);
             }
 
-            // Auto-add default repo if no repos exist (for testing)
-            if (this.repos.length === 0) {
+            // Auto-add default repo if no repos exist (EXTENSIONS: Skip on mobile as requested by user)
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+            if (this.repos.length === 0 && !isMobile) {
                 console.log('[AnimeExtensionRepository] No repos found, adding default repository');
                 this.repos.push({
                     url: DEFAULT_REPO_URL,

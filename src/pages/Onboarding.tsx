@@ -98,7 +98,7 @@ function Onboarding() {
                     </div>
                 </div>
 
-                <div className="w-full max-w-2xl px-4 z-20 -ml-48">
+                <div className="w-full max-w-2xl px-4 z-20 lg:-ml-48">
                     <Stepper
                         initialStep={1}
                         onFinalStepCompleted={handleComplete}

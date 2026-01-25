@@ -150,7 +150,7 @@ function Calendar() {
     const animeList = data?.Page?.media || [];
 
     return (
-        <div className="min-h-full pb-8" style={{ maxWidth: '1400px', margin: '0 auto' }}>
+        <div className="min-h-full pb-8 px-4" style={{ maxWidth: '1400px', margin: '0 auto' }}>
             {/* Header */}
             <div className="mb-4 flex items-end justify-between">
                 <div>
@@ -164,7 +164,7 @@ function Calendar() {
             <div className="flex flex-wrap items-center gap-4 mb-8">
 
                 {/* Season Pills with Animations */}
-                <div className="flex items-center gap-3">
+                <div className="grid grid-cols-2 md:flex md:items-center gap-3 w-full md:w-auto">
                     {SEASONS.map((season) => (
                         <SeasonPill
                             key={season.value}
@@ -221,7 +221,7 @@ function Calendar() {
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -20 }}
                         transition={{ duration: 0.3 }}
-                        className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-6"
+                        className="grid grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2 sm:gap-6"
                     >
                         {animeList.map((anime: any, index: number) => (
                             <motion.div

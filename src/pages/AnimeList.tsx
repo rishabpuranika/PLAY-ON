@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, forwardRef, useRef, useCallback } from 'react';
+import { useState, useEffect, useMemo, forwardRef, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@apollo/client';
 import AnimeCard from '../components/ui/AnimeCard';
@@ -133,23 +133,7 @@ function AnimeList() {
 
 
     const [searchQuery, setSearchQuery] = useState('');
-    const [isSearchHovered, setIsSearchHovered] = useState(false);
     const [isSearchFocused, setIsSearchFocused] = useState(false);
-    const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-    const handleMouseEnter = () => {
-        if (hoverTimeoutRef.current) {
-            clearTimeout(hoverTimeoutRef.current);
-            hoverTimeoutRef.current = null;
-        }
-        setIsSearchHovered(true);
-    };
-
-    const handleMouseLeave = () => {
-        hoverTimeoutRef.current = setTimeout(() => {
-            setIsSearchHovered(false);
-        }, 300);
-    };
 
 
     // Discord Rich Presence - Browsing Library
@@ -227,24 +211,23 @@ function AnimeList() {
     return (
         <div className="max-w-[1600px] mx-auto pb-10 px-6 min-h-screen">
             {/* Header / Stats Bar */}
-            <div className="sticky top-[-28px] z-30 mx-auto w-full max-w-[950px] h-[52px] relative flex items-center justify-center pointer-events-none -mt-4 mb-10">
-
+            <div className="mx-auto w-full max-w-[950px] relative flex flex-col sm:block items-center justify-center -mt-2 mb-4 sm:-mt-4 sm:mb-10 gap-2">
+                {/* 1. Search Island (Left) */}
                 {/* 1. Search Island (Left) */}
                 <div
-                    className="absolute left-4 pointer-events-auto group backdrop-blur-2xl rounded-full shadow-2xl h-[52px] flex items-center transition-all duration-300 w-[52px] hover:w-[340px] focus-within:w-[340px] overflow-hidden"
+                    className="relative sm:absolute left-0 sm:left-4 group backdrop-blur-md rounded-full shadow-lg h-[42px] sm:h-[46px] flex items-center gap-2 pl-3 pr-4 transition-all duration-300 ease-out hover:bg-white/[0.07] focus-within:bg-white/10"
                     style={{
-                        backgroundColor: 'var(--theme-bg-glass)',
-                        border: '1px solid var(--theme-border-highlight)'
+                        backgroundColor: 'var(--color-bg-glass)',
+                        border: '1px solid rgba(255,255,255,0.05)',
+                        borderRadius: '100px'
                     }}
-                    onMouseEnter={handleMouseEnter}
-                    onMouseLeave={handleMouseLeave}
                 >
-                    <div
-                        className="absolute left-0 top-0 w-[52px] h-full flex items-center justify-center transition-colors pointer-events-none"
-                        style={{ color: 'var(--theme-text-muted)' }}
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    <div className="text-white/40 flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                     </div>
+
+                    <div className="h-4 w-px bg-white/10 mx-1" />
+
                     <input
                         type="text"
                         value={searchQuery}
@@ -252,18 +235,17 @@ function AnimeList() {
                         onFocus={() => setIsSearchFocused(true)}
                         onBlur={() => setIsSearchFocused(false)}
                         placeholder="Search library..."
-                        className="w-full h-full bg-transparent border-none outline-none text-sm font-medium pl-14 pr-4 cursor-pointer focus:cursor-text"
+                        className="bg-transparent border-none outline-none text-sm font-medium w-full sm:w-48 text-white placeholder-white/30"
                         style={{
                             fontFamily: 'var(--font-rounded)',
                             color: 'var(--theme-text-main)',
-                            '--placeholder-color': 'var(--theme-text-muted)'
-                        } as React.CSSProperties}
+                        }}
                     />
                 </div>
 
                 {/* 2. Main Filter Pill (Right) */}
                 <div
-                    className="absolute right-4 top-0 pointer-events-auto flex flex-wrap items-center justify-between gap-4 py-2 px-3 backdrop-blur-2xl rounded-full shadow-2xl transition-all duration-300"
+                    className="relative sm:absolute right-0 sm:right-4 top-0 flex scrollbar-hide overflow-x-auto w-full sm:w-auto items-center justify-start sm:justify-between gap-2 sm:gap-4 py-2 px-3 backdrop-blur-2xl rounded-xl sm:rounded-full shadow-2xl transition-all duration-300"
                     style={{
                         backgroundColor: 'var(--theme-bg-glass)',
                         border: '1px solid var(--theme-border-subtle)'
@@ -272,7 +254,7 @@ function AnimeList() {
                     {/* Status Buttons */}
                     <div className="flex flex-wrap items-center gap-1">
                         {(['All', 'Watching', 'Completed', 'Paused', 'Dropped', 'Planning'] as ListStatus[]).map((status) => {
-                            const isCompact = searchQuery || isSearchHovered || isSearchFocused;
+                            const isCompact = searchQuery || isSearchFocused;
 
                             const getStatusIcon = (s: ListStatus) => {
                                 switch (s) {
@@ -367,7 +349,7 @@ function AnimeList() {
                                     ref={ref}
                                     {...props}
                                     style={style}
-                                    className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 pb-20"
+                                    className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-2 sm:gap-6 pb-20"
                                 >
                                     {children}
                                 </div>

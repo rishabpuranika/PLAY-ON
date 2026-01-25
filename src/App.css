@@ -17,6 +17,9 @@
 /* === TAILWIND === */
 @import "tailwindcss";
 
+/* === LAYOUT STYLES === */
+@import "./styles/MainLayout.css";
+
 /* === TAILWIND THEME EXTENSIONS === */
 @theme {
   /* App Shell Colors - mapped to theme variables */
