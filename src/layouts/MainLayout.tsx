@@ -1,12 +1,9 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useRef } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
-import Sidebar from '../components/sidebar/Sidebar';
-import Titlebar from '../components/titlebar/Titlebar';
-import TabNavigation from '../components/ui/TabNavigation';
 import Breadcrumbs from '../components/ui/Breadcrumbs';
 
 import FloatingNowPlaying from '../components/ui/FloatingNowPlaying';
-import MobileNav from '../components/ui/MobileNav'; // Import MobileNav
+import MobileNav from '../components/ui/MobileNav';
 import { useGestures } from '../hooks/useGestures';
 import { useAuth } from '../hooks/useAuth';
 import { useSettings } from '../context/SettingsContext';
@@ -16,40 +13,11 @@ import { useAniListNotifications } from '../hooks/useAniListNotifications';
  * MainLayout Component
  * 
  * Provides the persistent shell for the application.
+ * Mobile-optimized version.
  */
 function MainLayout() {
-    const [sidebarWidth, setSidebarWidth] = useState(200);
-    const [isResizing, setIsResizing] = useState(false);
     const { user } = useAuth();
     const { unreadCount } = useAniListNotifications();
-    const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
-
-    // Track window size for mobile logic if needed in JS (though CSS handles most)
-    useEffect(() => {
-        const handleResize = () => {
-            setIsMobile(window.innerWidth <= 768);
-        };
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
-    }, []);
-
-    // Dynamically adjust sidebar width for long usernames
-    useEffect(() => {
-        if (user?.name && !isMobile) {
-            // Approx 10px per character + 110px base (48px avatar + margins/padding)
-            // "MemestaVedas" (12 chars) -> 120 + 110 = 230px
-            const nameWidth = user.name.length * 10;
-            const requiredWidth = 110 + nameWidth;
-
-            // Only auto-expand if current width is too small
-            // And limit max auto-expansion to 300px to avoid taking too much space
-            if (sidebarWidth < requiredWidth) {
-                const newWidth = Math.min(requiredWidth, 300);
-                // Ensure we don't shrink below 200 default
-                setSidebarWidth(Math.max(200, newWidth));
-            }
-        }
-    }, [user?.name, isMobile, sidebarWidth]); // Check when username changes (e.g. login)
 
     // Gestures for Mobile Navigation
     const containerRef = useRef<HTMLDivElement>(null);
@@ -76,42 +44,12 @@ function MainLayout() {
         }
     });
 
-    const handleBack = () => navigate(-1);
-    const handleForward = () => navigate(1);
-
-    const startResizing = useCallback(() => {
-        setIsResizing(true);
-    }, []);
-
-    const stopResizing = useCallback(() => {
-        setIsResizing(false);
-    }, []);
-
-    const resize = useCallback((mouseMoveEvent: MouseEvent) => {
-        if (isResizing) {
-            const newWidth = mouseMoveEvent.clientX;
-            if (newWidth >= 180 && newWidth <= 450) {
-                setSidebarWidth(newWidth);
-            }
-        }
-    }, [isResizing]);
-
-    useEffect(() => {
-        window.addEventListener("mousemove", resize);
-        window.addEventListener("mouseup", stopResizing);
-        return () => {
-            window.removeEventListener("mousemove", resize);
-            window.removeEventListener("mouseup", stopResizing);
-        };
-    }, [resize, stopResizing]);
-
     return (
         <div
             ref={containerRef}
             className="main-layout-container"
-            style={{ userSelect: isResizing ? 'none' : 'auto' }}
         >
-            {/* Mobile Header Controls (Notifications & Settings) - Moved to root for visibility */}
+            {/* Mobile Header Controls (Notifications & Settings) */}
             <div className="fixed top-14 right-4 pointer-events-auto z-50 flex items-center gap-3">
                 {/* Notifications Icon */}
                 {user?.name && (
@@ -144,44 +82,16 @@ function MainLayout() {
                 </button>
             </div>
 
-            {/* Custom Titlebar - Desktop Only */}
-            {!isMobile && <Titlebar />}
-
-            {/* Sidebar - Hidden on Mobile via CSS */}
-            <div
-                className="sidebar-wrapper"
-                style={{ width: `${sidebarWidth}px` }}
-            >
-                <Sidebar width={sidebarWidth} />
-
-                {/* Resize Handle */}
-                <div
-                    onMouseDown={startResizing}
-                    className={`resize-handle ${isResizing ? 'resizing' : ''}`}
-                    onMouseEnter={(e) => {
-                        if (!isResizing) e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
-                    }}
-                    onMouseLeave={(e) => {
-                        if (!isResizing) e.currentTarget.style.background = 'transparent';
-                    }}
-                />
-            </div>
-
             {/* Main Content Area - Styled as a contained "Canvas" */}
             <div className="main-content-area">
                 {/* Page Content Outlet */}
                 <div className="relative flex-1 flex flex-col overflow-hidden">
                     {/* Header Controls Row - Floating Overlay */}
-                    <div className={`header-controls ${isMobile ? 'flex-col items-start gap-2 pt-2' : ''}`}>
-                        {!isMobile && (
-                            <div className="pointer-events-auto"><TabNavigation onBack={handleBack} onForward={handleForward} /></div>
-                        )}
+                    <div className="header-controls flex-col items-start gap-2 pt-2">
 
-                        {/* Always show Breadcrumbs (User request: "add home displayed on top") */}
-                        <div className={`pointer-events-auto ${isMobile ? 'pl-14' : ''}`}><Breadcrumbs /></div>
 
                         {/* Mobile Profile Icon (Top Left) */}
-                        {isMobile && user?.name && (
+                        {user?.name && (
                             <div className="absolute top-4 left-4 pointer-events-auto z-50">
                                 <button
                                     onClick={() => navigate(`/user/${user.name}`)}
@@ -198,9 +108,6 @@ function MainLayout() {
                                 </button>
                             </div>
                         )}
-
-                        {/* Mobile Header Controls (Notifications & Settings) */}
-
                     </div>
 
                     {/* Scrollable Content Container */}
@@ -210,8 +117,8 @@ function MainLayout() {
                 </div>
             </div>
 
-            {/* Mobile Navigation - Only visible on mobile via CSS/JS logic */}
-            {isMobile && <MobileNav />}
+            {/* Mobile Navigation - Always Visible */}
+            <MobileNav />
 
             {/* Floating Now Playing Pill - Global overlay */}
             <FloatingNowPlaying />

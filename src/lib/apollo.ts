@@ -1,6 +1,7 @@
 import { ApolloClient, InMemoryCache, HttpLink } from '@apollo/client';
 import { setContext } from '@apollo/client/link/context';
 import { persistCache, LocalStorageWrapper } from 'apollo3-cache-persist';
+import { fetch } from '@tauri-apps/plugin-http';
 
 const cache = new InMemoryCache({
     typePolicies: {
@@ -47,6 +48,7 @@ export const cacheRestoredPromise = initCache();
 
 const httpLink = new HttpLink({
     uri: 'https://graphql.anilist.co',
+    fetch: fetch,
 });
 
 const authLink = setContext((_, { headers }) => {
@@ -57,6 +59,8 @@ const authLink = setContext((_, { headers }) => {
     return {
         headers: {
             ...headers,
+            'User-Agent': 'PlayOn-Mobile-App/1.0',
+            'Accept': 'application/json',
             authorization: token ? `Bearer ${token}` : "",
         }
     };

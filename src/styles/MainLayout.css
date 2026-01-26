@@ -4,61 +4,25 @@
     height: 100vh;
     position: relative;
     overflow: hidden;
-    /* userSelect is handled via inline style in component due to dynamic resizing */
 }
 
-/* Sidebar Wrapper */
-.sidebar-wrapper {
-    position: relative;
-    z-index: 10;
-    flex-shrink: 0;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    /* width is handled via inline style */
-}
-
-/* Resize Handle */
-.resize-handle {
-    position: absolute;
-    right: 0;
-    top: 0;
-    width: 4px;
-    height: 100%;
-    cursor: col-resize;
-    z-index: 101;
-    transition: background 0.2s;
-    background: transparent;
-}
-
-.resize-handle:hover {
-    background: rgba(255, 255, 255, 0.05);
-}
-
-.resize-handle.resizing {
-    background: rgba(244, 0, 53, 0.3);
-}
-
-/* Main Content Area */
+/* Main Content Area - Mobile Optimized Default */
 .main-content-area {
-    margin-top: 42px;
-    margin-right: 8px;
-    margin-bottom: 8px;
+    margin: 0;
+    margin-top: 40px;
+    /* Space for top spacing/safe area */
     flex: 1;
     display: flex;
     flex-direction: column;
-    height: calc(100vh - 50px);
+    height: calc(100vh - 40px);
     position: relative;
     z-index: 1;
-    border-radius: 24px;
-    box-shadow: var(--shadow-glass);
     overflow: hidden;
-    border: 1px solid var(--color-border-subtle);
+    border: none;
     background: var(--color-bg-content);
-    transition: all 0.3s ease;
 }
 
-/* Header Controls */
+/* Header Controls - Transparent */
 .header-controls {
     position: absolute;
     top: 0;
@@ -68,83 +32,30 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 1rem 1.5rem;
+    padding: 0.5rem 1rem;
+    flex-wrap: wrap;
+    gap: 8px;
+    background: transparent;
     pointer-events: none;
-    background: linear-gradient(to bottom, rgba(var(--color-bg-main-rgb), 0.1), transparent);
+    /* Ensure clicks pass through empty areas */
 }
 
 .header-controls>* {
     pointer-events: auto;
 }
 
+.header-controls> :nth-child(2) {
+    /* Breadcrumbs */
+    flex: 1;
+    overflow: hidden;
+}
+
 /* Scroll Container */
 .content-scroll-container {
     flex: 1;
     overflow-y: auto;
-    padding: 1rem 2rem;
-    padding-top: 6rem;
-    /* Space for header */
-}
-
-
-/* =========================================================================
-   MOBILE RESPONSIVE STYLES
-   ========================================================================= */
-
-@media (max-width: 768px) {
-
-    /* Hide Sidebar on mobile */
-    .sidebar-wrapper {
-        display: none !important;
-        width: 0 !important;
-    }
-
-    /* Reset Main Content margins */
-    .main-content-area {
-        margin: 0;
-        margin-top: 40px;
-        /* Space for customized mobile titlebar if needed, or keeping existing titlebar space */
-        height: calc(100vh - 40px - 60px);
-        /* Subtract Titlebar and MobileNav height */
-        border-radius: 0;
-        border: none;
-        border-top: 1px solid var(--color-border-subtle);
-    }
-
-    /* Adjust Header Controls for mobile */
-    .header-controls {
-        padding: 0.5rem 1rem;
-        flex-wrap: wrap;
-        gap: 8px;
-        background: transparent;
-        pointer-events: none;
-        /* Ensure clicks pass through empty areas */
-    }
-
-    /* Hide generic Breadcrumbs/Tabs on mobile to save space if needed,
-       but for now we'll just let them flex/wrap or scale down */
-    .header-controls> :nth-child(1) {
-        /* Tabs */
-        display: none;
-    }
-
-    .header-controls> :nth-child(2) {
-        /* Breadcrumbs */
-        flex: 1;
-        overflow: hidden;
-    }
-
-    .header-controls> :nth-child(3) {
-        /* SearchBar */
-        width: 40px;
-        /* Collapsed search icon maybe? Or just keep it */
-    }
-
-    /* Adjust Scroll Container padding */
-    .content-scroll-container {
-        padding: 1rem;
-        padding-top: 4rem;
-        padding-bottom: 5.5rem;
-        /* Increased for taller mobile nav */
-    }
+    padding: 1rem;
+    padding-top: 4rem;
+    padding-bottom: 5.5rem;
+    /* Space for MobileNav (72px) */
 }
