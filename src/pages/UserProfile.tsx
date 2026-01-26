@@ -51,9 +51,9 @@ function UserProfile() {
     }
 
     return (
-        <div className="relative min-h-full font-rounded pb-20" style={{ color: 'var(--color-text-main)', margin: '-96px -32px 0 -32px' }}>
+        <div className="relative min-h-full font-rounded pb-20 md:-mt-24 md:-mx-8" style={{ color: 'var(--color-text-main)' }}>
             {/* Edge-to-Edge Banner */}
-            <div className="relative w-full h-[300px] md:h-[400px]">
+            <div className="relative w-full h-[200px] md:h-[400px]">
                 {user.bannerImage ? (
                     <img src={user.bannerImage} alt="Banner" className="w-full h-full object-cover" />
                 ) : (
@@ -64,26 +64,26 @@ function UserProfile() {
             </div>
 
             {/* Content Container - Overlapping Banner */}
-            <div className="relative z-10 max-w-[1200px] mx-auto px-8 -mt-32 md:-mt-48">
+            <div className="relative z-10 max-w-[1200px] mx-auto px-4 md:px-8 -mt-24 md:-mt-48">
 
                 {/* Header Info */}
-                <div className="flex items-end gap-8 mb-10">
+                <div className="flex flex-col md:flex-row items-end gap-6 md:gap-8 mb-10">
                     {/* Avatar - no background or border */}
-                    <div className="w-32 h-32 md:w-48 md:h-48 rounded-2xl overflow-hidden shadow-2xl shrink-0">
+                    <div className="w-28 h-28 md:w-48 md:h-48 rounded-2xl overflow-hidden shadow-2xl shrink-0 mx-auto md:mx-0">
                         <img src={user.avatar?.large} alt={user.name} className="w-full h-full object-cover" />
                     </div>
 
                     {/* Name & Quick Stats */}
-                    <div className="mb-4 flex-1 min-w-0">
-                        <div className="flex items-center justify-between w-full">
-                            <h1 className="text-4xl md:text-6xl font-black mb-2 flex items-center gap-3 drop-shadow-xl tracking-tight text-white">
+                    <div className="mb-4 flex-1 min-w-0 text-center md:text-left w-full">
+                        <div className="flex flex-col md:flex-row items-center md:justify-between w-full gap-2 md:gap-0">
+                            <h1 className="text-2xl md:text-6xl font-black mb-2 flex items-center justify-center md:justify-start gap-3 drop-shadow-xl tracking-tight text-white">
                                 {user.name}
                             </h1>
                             {/* Edit Profile Button - Only for own profile */}
                             {isOwnProfile && (
                                 <button
                                     onClick={() => setIsEditing(true)}
-                                    className="flex items-center justify-center p-3 rounded-xl font-bold text-sm transition-all duration-200"
+                                    className="flex items-center justify-center p-3 rounded-xl font-bold text-sm transition-all duration-200 w-full md:w-auto"
                                     style={{
                                         background: 'rgba(255, 255, 255, 0.1)',
                                         border: '1px solid rgba(255, 255, 255, 0.2)',
@@ -101,11 +101,14 @@ function UserProfile() {
                                     }}
                                     title="Edit Profile"
                                 >
-                                    <EditIcon size={20} />
+                                    <div className="flex items-center gap-2">
+                                        <EditIcon size={20} />
+                                        <span className="md:hidden">Edit Profile</span>
+                                    </div>
                                 </button>
                             )}
                         </div>
-                        <div className="flex gap-6 text-sm font-bold text-white/60 tracking-wider">
+                        <div className="flex justify-center md:justify-start gap-4 md:gap-6 text-xs md:text-sm font-bold text-white/60 tracking-wider mt-2">
                             <span className="flex items-center gap-2">
                                 <span className="w-2 h-2 rounded-full bg-[var(--theme-accent-primary)]"></span>
                                 ANIME: {user.statistics?.anime?.count || 0}
@@ -121,9 +124,9 @@ function UserProfile() {
                 {/* About / Bio */}
                 {user.about && (
                     <div className="mb-12">
-                        <SectionHeader title="About" />
-                        <div className="max-w-4xl bg-white/5 p-8 rounded-2xl border border-white/5 backdrop-blur-sm shadow-inner">
-                            <div className="whitespace-pre-wrap font-medium leading-relaxed opacity-90 text-lg">
+                        <SectionHeader title="About" className="text-xl md:text-3xl" />
+                        <div className="max-w-4xl bg-white/5 p-6 md:p-8 rounded-2xl border border-white/5 backdrop-blur-sm shadow-inner">
+                            <div className="whitespace-pre-wrap font-medium leading-relaxed opacity-90 text-sm md:text-lg">
                                 {user.about}
                             </div>
                         </div>
@@ -131,16 +134,16 @@ function UserProfile() {
                 )}
 
                 {/* Stats Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8 mb-12">
                     {/* Anime Stats */}
                     <SpotlightCard
-                        className="p-8 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md"
+                        className="p-4 md:p-8 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md"
                         spotlightColor="rgba(var(--theme-accent-primary-rgb), 0.25)"
                     >
-                        <h3 className="text-xl font-bold mb-8 flex items-center gap-3 text-[var(--theme-accent-primary)]">
-                            <FilmIcon size={28} /> Anime Stats
+                        <h3 className="text-lg md:text-xl font-bold mb-4 md:mb-8 flex items-center gap-3 text-[var(--theme-accent-primary)]">
+                            <FilmIcon size={20} className="md:w-7 md:h-7" /> Anime Stats
                         </h3>
-                        <div className="grid grid-cols-2 gap-6">
+                        <div className="grid grid-cols-2 gap-3 md:gap-6">
                             <StatBox label="Count" value={user.statistics?.anime?.count} />
                             <StatBox label="Mean Score" value={user.statistics?.anime?.meanScore + '%'} />
                             <StatBox label="Episodes" value={user.statistics?.anime?.episodesWatched} />
@@ -150,13 +153,13 @@ function UserProfile() {
 
                     {/* Manga Stats */}
                     <SpotlightCard
-                        className="p-8 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md"
+                        className="p-4 md:p-8 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md"
                         spotlightColor="rgba(var(--theme-accent-success-rgb), 0.25)"
                     >
-                        <h3 className="text-xl font-bold mb-8 flex items-center gap-3 text-[var(--theme-accent-success)]">
-                            <BookIcon size={28} /> Manga Stats
+                        <h3 className="text-lg md:text-xl font-bold mb-4 md:mb-8 flex items-center gap-3 text-[var(--theme-accent-success)]">
+                            <BookIcon size={20} className="md:w-7 md:h-7" /> Manga Stats
                         </h3>
-                        <div className="grid grid-cols-2 gap-6">
+                        <div className="grid grid-cols-2 gap-3 md:gap-6">
                             <StatBox label="Count" value={user.statistics?.manga?.count} />
                             <StatBox label="Mean Score" value={user.statistics?.manga?.meanScore + '%'} />
                             <StatBox label="Chapters" value={user.statistics?.manga?.chaptersRead} />
@@ -169,17 +172,17 @@ function UserProfile() {
                 {user.favourites?.anime?.nodes?.length > 0 && (
                     <div className="mb-12">
                         <div className="flex items-center justify-between mb-4">
-                            <SectionHeader title="Favorite Anime" />
+                            <SectionHeader title="Favorite Anime" className="text-xl md:text-3xl font-bold" />
                             <a
                                 href={`https://anilist.co/user/${username}/favorites`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-sm font-bold text-white/40 hover:text-[var(--color-zen-accent)] transition-colors"
+                                className="text-xs md:text-sm font-bold text-white/40 hover:text-[var(--color-zen-accent)] transition-colors"
                             >
                                 View All →
                             </a>
                         </div>
-                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
+                        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2 md:gap-4">
                             {user.favourites.anime.nodes.map((anime: any) => (
                                 <AnimeCard
                                     key={anime.id}
@@ -195,17 +198,17 @@ function UserProfile() {
                 {user.favourites?.manga?.nodes?.length > 0 && (
                     <div className="mb-12">
                         <div className="flex items-center justify-between mb-4">
-                            <SectionHeader title="Favorite Manga" />
+                            <SectionHeader title="Favorite Manga" className="text-xl md:text-3xl font-bold" />
                             <a
                                 href={`https://anilist.co/user/${username}/favorites`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-sm font-bold text-white/40 hover:text-[var(--color-zen-accent)] transition-colors"
+                                className="text-xs md:text-sm font-bold text-white/40 hover:text-[var(--color-zen-accent)] transition-colors"
                             >
                                 View All →
                             </a>
                         </div>
-                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
+                        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2 md:gap-4">
                             {user.favourites.manga.nodes.map((manga: any) => (
                                 <AnimeCard
                                     key={manga.id}
@@ -221,17 +224,17 @@ function UserProfile() {
                 {user.favourites?.characters?.nodes?.length > 0 && (
                     <div className="mb-12">
                         <div className="flex items-center justify-between mb-4">
-                            <SectionHeader title="Favorite Characters" />
+                            <SectionHeader title="Favorite Characters" className="text-xl md:text-3xl font-bold" />
                             <a
                                 href={`https://anilist.co/user/${username}/favorites`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-sm font-bold text-white/40 hover:text-[var(--color-zen-accent)] transition-colors"
+                                className="text-xs md:text-sm font-bold text-white/40 hover:text-[var(--color-zen-accent)] transition-colors"
                             >
                                 View All →
                             </a>
                         </div>
-                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
+                        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-7 gap-2 md:gap-4">
                             {user.favourites.characters.nodes.map((char: any) => (
                                 <div key={char.id} className="group relative aspect-[3/4] rounded-xl overflow-hidden bg-white/5 border border-white/10 shadow-lg transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:border-white/20">
                                     <img src={char.image?.large} alt={char.name?.full} className="w-full h-full object-cover" />
@@ -262,9 +265,9 @@ function UserProfile() {
 
 function StatBox({ label, value }: { label: string, value: string | number }) {
     return (
-        <div className="bg-white/5 rounded-xl p-4 border border-white/5 text-center">
-            <div className="text-2xl font-bold text-white mb-1" style={{ fontFamily: 'var(--font-mono)' }}>{value || 0}</div>
-            <div className="text-xs uppercase font-bold text-white/40 tracking-widest">{label}</div>
+        <div className="bg-white/5 rounded-xl p-3 md:p-4 border border-white/5 text-center">
+            <div className="text-lg md:text-2xl font-bold text-white mb-1" style={{ fontFamily: 'var(--font-mono)' }}>{value || 0}</div>
+            <div className="text-[10px] md:text-xs uppercase font-bold text-white/40 tracking-widest">{label}</div>
         </div>
     );
 }

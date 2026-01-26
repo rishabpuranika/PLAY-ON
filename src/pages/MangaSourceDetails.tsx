@@ -38,8 +38,8 @@ import { syncMangaFromAniList } from '../lib/syncService';
 import { setBrowsingActivity } from '../services/discordRPC';
 import { useAuth } from '../hooks/useAuth';
 import { queueChapterDownload, onDownloadProgress, isDownloadFolderConfigured } from '../services/downloadService';
-import { Dropdown } from '../components/ui/Dropdown';
 import AniListSearchDialog from '../components/ui/AniListSearchDialog';
+import ChapterFilterModal, { FilterMode } from '../components/ui/ChapterFilterModal';
 import { DownloadFolderDialog } from '../components/ui/DownloadFolderDialog';
 import { PlayIcon } from '../components/ui/Icons';
 import './MangaSourceDetails.css';
@@ -61,10 +61,17 @@ function MangaSourceDetails() {
     const [libraryCategories, setLibraryCategories] = useState<LibraryCategory[]>([]);
     const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
 
+    // Filter Modal State
+    const [showFilterModal, setShowFilterModal] = useState(false);
+
     // Sorting and filtering state
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>(settings.defaultChapterSort);
-    const [filter, setFilter] = useState<string[]>([]);
-    const [bookmarkFilter, setBookmarkFilter] = useState(false);
+
+    // Tri-State Filters
+    const [downloadedFilter, setDownloadedFilter] = useState<FilterMode>('off');
+    const [unreadFilter, setUnreadFilter] = useState<FilterMode>('off');
+    const [bookmarkedFilter, setBookmarkedFilter] = useState<FilterMode>('off');
+
     // Track downloading chapters: chapterId -> boolean
     const [downloadingChapters, setDownloadingChapters] = useState<Record<string, boolean>>({});
     // Show download folder configuration dialog
@@ -222,33 +229,48 @@ function MangaSourceDetails() {
             );
         }
 
-        // Apply main filter (Read/Unread/Downloaded/Not-Downloaded)
-        if (filter.length > 0) {
-            if (filter.includes('read')) {
-                if (localEntry) {
-                    result = result.filter(ch => ch.number <= localEntry.chapter);
-                } else {
-                    result = []; // Can't be read if no local entry
-                }
-            }
-            if (filter.includes('unread')) {
-                if (localEntry) {
-                    result = result.filter(ch => ch.number > localEntry.chapter);
-                }
-                // If no local entry, all are unread, so no filtering needed
-            }
-            if (filter.includes('downloaded')) {
-                if (entryId) {
+        // --- NEW TRI-STATE FILTERS ---
+
+        // 1. Downloaded Filter
+        if (downloadedFilter !== 'off') {
+            if (entryId) {
+                if (downloadedFilter === 'include') {
                     result = result.filter(ch => isChapterDownloaded(entryId, ch.id));
-                } else {
-                    result = [];
-                }
-            }
-            if (filter.includes('not-downloaded')) {
-                if (entryId) {
+                } else { // exclude
                     result = result.filter(ch => !isChapterDownloaded(entryId, ch.id));
                 }
-                // If no entryId, none are downloaded, so all are not-downloaded
+            } else if (downloadedFilter === 'include') {
+                // No entryId logic = no downloads logic = empty if include
+                result = [];
+            }
+            // if exclude and no entryId, we keep all (as they are all not downloaded)
+        }
+
+        // 2. Unread Filter (__Read Status__)
+        if (unreadFilter !== 'off') {
+            if (localEntry) {
+                if (unreadFilter === 'include') { // Show Unread
+                    result = result.filter(ch => ch.number > localEntry.chapter);
+                } else { // Exclude Unread aka Show Read
+                    result = result.filter(ch => ch.number <= localEntry.chapter);
+                }
+            } else if (unreadFilter === 'exclude') {
+                // If no entry, all are unread. So if we exclude unread, we show nothing.
+                result = [];
+            }
+            // If include unread and no entry, we show all (all are unread)
+        }
+
+        // 3. Bookmarked Filter
+        if (bookmarkedFilter !== 'off') {
+            if (entryId) {
+                if (bookmarkedFilter === 'include') {
+                    result = result.filter(ch => isChapterBookmarked(entryId, ch.id));
+                } else { // exclude
+                    result = result.filter(ch => !isChapterBookmarked(entryId, ch.id));
+                }
+            } else if (bookmarkedFilter === 'include') {
+                result = [];
             }
         }
 
@@ -258,7 +280,7 @@ function MangaSourceDetails() {
         });
 
         return result;
-    }, [chapters, searchQuery, sortOrder, filter, bookmarkFilter, localEntry, sourceId, mangaId, refreshTrigger]);
+    }, [chapters, searchQuery, sortOrder, downloadedFilter, unreadFilter, bookmarkedFilter, localEntry, sourceId, mangaId, refreshTrigger]);
 
     const handleChapterClick = (chapter: Chapter) => {
         navigate(
@@ -582,29 +604,17 @@ function MangaSourceDetails() {
                             </svg>
                         </button>
 
-                        {/* Main Filter */}
-                        <Dropdown
-                            multiple
-                            value={filter}
-                            onChange={(val) => setFilter(val)}
-                            placeholder="Filters"
-                            options={[
-                                { value: 'read', label: 'Read' },
-                                { value: 'unread', label: 'Unread' },
-                                { value: 'downloaded', label: 'Downloaded' },
-                                { value: 'not-downloaded', label: 'Not Downloaded' }
-                            ]}
-                            className="w-40"
-                        />
-
-                        {/* Bookmark Filter Toggle */}
+                        {/* Filter Toggle */}
                         <button
-                            className={`control-btn ${bookmarkFilter ? 'active' : ''}`}
-                            onClick={() => setBookmarkFilter(!bookmarkFilter)}
-                            title={bookmarkFilter ? 'Showing Bookmarked' : 'Show All'}
+                            className={`control-btn ${(downloadedFilter !== 'off' || unreadFilter !== 'off' || bookmarkedFilter !== 'off') ? 'active' : ''}`}
+                            onClick={() => {
+                                console.log('Filter button clicked');
+                                setShowFilterModal(true);
+                            }}
+                            title="Filter Chapters"
                         >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill={bookmarkFilter ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
                             </svg>
                         </button>
 
@@ -847,12 +857,24 @@ function MangaSourceDetails() {
                     setPendingDownloadAction(null);
                 }}
                 onConfigured={() => {
-                    // Execute pending download action if any
+                    // Execute pending action if any
                     if (pendingDownloadAction) {
                         pendingDownloadAction();
                         setPendingDownloadAction(null);
                     }
                 }}
+            />
+
+            {/* Filter Modal */}
+            <ChapterFilterModal
+                isOpen={showFilterModal}
+                onClose={() => setShowFilterModal(false)}
+                downloadedFilter={downloadedFilter}
+                onDownloadedChange={setDownloadedFilter}
+                unreadFilter={unreadFilter}
+                onUnreadChange={setUnreadFilter}
+                bookmarkedFilter={bookmarkedFilter}
+                onBookmarkedChange={setBookmarkedFilter}
             />
         </div>
     );

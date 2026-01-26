@@ -17,19 +17,20 @@ import {
     BookIcon,
     FolderIcon,
     WrenchIcon,
-    PuzzleIcon
+    PuzzleIcon,
+    UserIcon
 } from '../components/ui/Icons';
 import { Dropdown } from '../components/ui/Dropdown';
 import './Settings.css';
 import ExtensionsSettings from '../components/settings/ExtensionsSettings';
-
+import { ProfileSettings } from '../components/settings/ProfileSettings';
 
 // ============================================================================
 // SETTINGS PAGE
-// Comprehensive settings interface with 5 categories
+// Comprehensive settings interface with 6 categories
 // ============================================================================
 
-type TabId = 'general' | 'extensions' | 'manga' | 'storage' | 'advanced';
+type TabId = 'general' | 'profile' | 'extensions' | 'manga' | 'storage' | 'advanced';
 
 interface Tab {
     id: TabId;
@@ -39,6 +40,7 @@ interface Tab {
 
 const TABS: Tab[] = [
     { id: 'general', label: 'General', icon: <SettingsIcon size={18} /> },
+    { id: 'profile', label: 'Profile', icon: <UserIcon size={18} /> },
     { id: 'extensions', label: 'Extensions', icon: <PuzzleIcon size={18} /> },
     { id: 'manga', label: 'Manga', icon: <BookIcon size={18} /> },
     { id: 'storage', label: 'Storage & Library', icon: <FolderIcon size={18} /> },
@@ -743,7 +745,8 @@ export default function Settings() {
         switch (activeTab) {
             case 'general':
                 return <GeneralSettings />;
-
+            case 'profile':
+                return <ProfileSettings variant="embedded" />;
             case 'extensions':
                 return <ExtensionsSettings />;
             case 'manga':

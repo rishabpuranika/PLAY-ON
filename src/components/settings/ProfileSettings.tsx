@@ -141,8 +141,19 @@ function ConfirmDialog({ isOpen, onConfirm, onCancel }: ConfirmDialogProps) {
     );
 }
 
-export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({ isOpen, onClose }) => {
+interface ProfileSettingsProps {
+    isOpen?: boolean;
+    onClose?: () => void;
+    variant?: 'modal' | 'embedded';
+}
+
+export const ProfileSettings: React.FC<ProfileSettingsProps> = ({
+    isOpen = true,
+    onClose,
+    variant = 'modal'
+}) => {
     const { user, refreshUser } = useAuthContext();
+    const isModal = variant === 'modal';
 
     // Form state
     const [about, setAbout] = useState('');
@@ -161,9 +172,9 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({ isOp
     const [hasChanges, setHasChanges] = useState(false);
     const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
-    // Initialize form with user data when modal opens
+    // Initialize form with user data
     useEffect(() => {
-        if (isOpen && user) {
+        if ((isOpen || !isModal) && user) {
             setAbout(user.about || '');
             setTitleLanguage((user.options?.titleLanguage as TitleLanguage) || 'ROMAJI');
             setStaffNameLanguage((user.options?.staffNameLanguage as StaffNameLanguage) || 'ROMAJI_WESTERN');
@@ -176,7 +187,7 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({ isOp
             setHasChanges(false);
             setError(null);
         }
-    }, [isOpen, user]);
+    }, [isOpen, isModal, user]);
 
     // Track changes
     const updateField = <T,>(setter: React.Dispatch<React.SetStateAction<T>>, value: T) => {
@@ -189,7 +200,7 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({ isOp
         if (hasChanges) {
             setShowConfirmDialog(true);
         } else {
-            onClose();
+            onClose?.();
         }
     };
 
@@ -212,7 +223,9 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({ isOp
 
             await refreshUser();
             setHasChanges(false);
-            onClose();
+            if (isModal) {
+                onClose?.();
+            }
         } catch (err) {
             console.error('Failed to update profile:', err);
             setError('Failed to save changes. Please try again.');
@@ -225,264 +238,274 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({ isOp
         window.open('https://anilist.co/settings/account', '_blank');
     };
 
-    if (!isOpen) return null;
+    if (isModal && !isOpen) return null;
 
-    return (
-        <>
-            <div
-                className="fixed inset-0 z-50 flex items-center justify-center p-4"
-                style={{ backgroundColor: 'rgba(0, 0, 0, 0.8)', backdropFilter: 'blur(8px)' }}
-                onClick={(e) => e.target === e.currentTarget && handleClose()}
-            >
-                <div
-                    className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl p-8"
-                    style={{
-                        background: 'linear-gradient(180deg, rgba(30, 30, 40, 0.98) 0%, rgba(20, 20, 30, 0.98) 100%)',
-                        border: '1px solid rgba(255, 255, 255, 0.1)',
-                        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
-                    }}
-                >
-                    {/* Header */}
-                    <div className="flex items-center justify-between mb-6">
-                        <div className="flex items-center gap-4">
-                            {user?.avatar?.large && (
-                                <img
-                                    src={user.avatar.large}
-                                    alt={user.name}
-                                    className="w-12 h-12 rounded-xl object-cover"
-                                />
-                            )}
-                            <div>
-                                <h2 className="text-2xl font-black text-white">Edit Profile</h2>
-                                <p className="text-sm text-white/40">{user?.name}</p>
-                            </div>
+    const content = (
+        <div
+            className={isModal ? "w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl p-8" : "settings-section"}
+            style={isModal ? {
+                background: 'linear-gradient(180deg, rgba(30, 30, 40, 0.98) 0%, rgba(20, 20, 30, 0.98) 100%)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+            } : undefined}
+        >
+            {/* Header */}
+            {isModal && (
+                <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-4">
+                        {user?.avatar?.large && (
+                            <img
+                                src={user.avatar.large}
+                                alt={user.name}
+                                className="w-12 h-12 rounded-xl object-cover"
+                            />
+                        )}
+                        <div>
+                            <h2 className="text-2xl font-black text-white">Edit Profile</h2>
+                            <p className="text-sm text-white/40">{user?.name}</p>
                         </div>
-                        <button
-                            onClick={handleClose}
-                            className="w-10 h-10 flex items-center justify-center rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-all"
-                        >
-                            ✕
-                        </button>
                     </div>
-
-                    {/* Quick Link to AniList for Avatar/Banner */}
                     <button
-                        onClick={openAniListProfile}
-                        className="w-full flex items-center gap-3 p-4 rounded-xl mb-6 transition-all"
-                        style={{
-                            background: 'rgba(59, 180, 242, 0.1)',
-                            border: '1px solid rgba(59, 180, 242, 0.2)',
-                        }}
-                        onMouseEnter={(e) => {
-                            e.currentTarget.style.background = 'rgba(59, 180, 242, 0.2)';
-                        }}
-                        onMouseLeave={(e) => {
-                            e.currentTarget.style.background = 'rgba(59, 180, 242, 0.1)';
-                        }}
+                        onClick={handleClose}
+                        className="w-10 h-10 flex items-center justify-center rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-all"
                     >
-                        <LinkIcon size={20} className="text-[#3DB4F2]" />
-                        <div className="flex-1 text-left">
-                            <div className="text-white font-medium">Change Avatar & Banner</div>
-                            <div className="text-sm text-white/40">Opens AniList in your browser</div>
-                        </div>
-                        <span className="text-[#3DB4F2] text-sm font-medium">→</span>
+                        ✕
                     </button>
+                </div>
+            )}
 
-                    {/* Bio Section */}
-                    <div className="mb-6">
-                        <label className="block text-sm font-bold text-white/60 mb-2">About / Bio</label>
-                        <textarea
-                            value={about}
-                            onChange={(e) => updateField(setAbout, e.target.value)}
-                            placeholder="Tell us about yourself..."
-                            rows={4}
-                            className="w-full p-4 rounded-xl text-white placeholder-white/30 resize-vertical"
-                            style={{
-                                background: 'rgba(255, 255, 255, 0.05)',
-                                border: '1px solid rgba(255, 255, 255, 0.1)',
-                                minHeight: '100px',
-                            }}
+            {!isModal && (
+                <>
+                    <h2 className="settings-section-title">Profile</h2>
+                    <p className="settings-section-description">
+                        Manage your account and preferences
+                    </p>
+                </>
+            )}
+
+            {/* Quick Link to AniList */}
+            <button
+                onClick={openAniListProfile}
+                className="w-full flex items-center gap-3 p-4 rounded-xl mb-6 transition-all"
+                style={{
+                    background: 'rgba(59, 180, 242, 0.1)',
+                    border: '1px solid rgba(59, 180, 242, 0.2)',
+                }}
+            >
+                <LinkIcon size={20} className="text-[#3DB4F2]" />
+                <div className="flex-1 text-left">
+                    <div className="text-white font-medium">Change Avatar & Banner</div>
+                    <div className="text-sm text-white/40">Opens AniList in your browser</div>
+                </div>
+                <span className="text-[#3DB4F2] text-sm font-medium">→</span>
+            </button>
+
+            {/* Content Sections */}
+            <div className="setting-group">
+                <h3 className="setting-group-title">Bio</h3>
+                <textarea
+                    value={about}
+                    onChange={(e) => updateField(setAbout, e.target.value)}
+                    placeholder="Tell us about yourself..."
+                    rows={4}
+                    className="w-full p-4 rounded-xl text-white placeholder-white/30 resize-vertical"
+                    style={{
+                        background: 'rgba(255, 255, 255, 0.05)',
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        minHeight: '100px',
+                    }}
+                />
+                <p className="mt-2 text-xs text-white/40">Supports Markdown formatting</p>
+            </div>
+
+            <div className="setting-group">
+                <h3 className="setting-group-title">Appearance</h3>
+                <label className="block text-sm font-bold text-white/60 mb-3">Profile Color</label>
+                <div className="flex gap-2 flex-wrap">
+                    {PROFILE_COLOR_OPTIONS.map((option) => (
+                        <button
+                            key={option.value}
+                            onClick={() => updateField(setProfileColor, option.value)}
+                            className={`w-10 h-10 rounded-xl transition-all ${profileColor === option.value ? 'ring-2 ring-white ring-offset-2 ring-offset-[#1e1e28] scale-110' : 'hover:scale-105'}`}
+                            style={{ backgroundColor: option.color }}
+                            title={option.label}
                         />
-                        <p className="mt-2 text-xs text-white/40">Supports Markdown formatting</p>
+                    ))}
+                </div>
+            </div>
+
+            <div className="setting-group">
+                <h3 className="setting-group-title">Display Preferences</h3>
+                <div role="list" className="setting-list" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div className="setting-row">
+                        <div className="setting-info">
+                            <span className="setting-label">Title Language</span>
+                            <span className="setting-description">Preferred language for titles</span>
+                        </div>
+                        <Dropdown
+                            value={String(titleLanguage)}
+                            options={TITLE_LANGUAGE_OPTIONS}
+                            onChange={(val) => updateField(setTitleLanguage, val as TitleLanguage)}
+                        />
                     </div>
 
-                    {/* Profile Color */}
-                    <div className="mb-6">
-                        <label className="block text-sm font-bold text-white/60 mb-3">Profile Color</label>
-                        <div className="flex gap-2 flex-wrap">
-                            {PROFILE_COLOR_OPTIONS.map((option) => (
-                                <button
-                                    key={option.value}
-                                    onClick={() => updateField(setProfileColor, option.value)}
-                                    className={`w-10 h-10 rounded-xl transition-all ${profileColor === option.value ? 'ring-2 ring-white ring-offset-2 ring-offset-[#1e1e28] scale-110' : 'hover:scale-105'}`}
-                                    style={{ backgroundColor: option.color }}
-                                    title={option.label}
-                                />
-                            ))}
+                    <div className="setting-row">
+                        <div className="setting-info">
+                            <span className="setting-label">Staff Name Language</span>
+                            <span className="setting-description">Preferred name order</span>
                         </div>
+                        <Dropdown
+                            value={String(staffNameLanguage)}
+                            options={STAFF_NAME_LANGUAGE_OPTIONS}
+                            onChange={(val) => updateField(setStaffNameLanguage, val as StaffNameLanguage)}
+                        />
                     </div>
 
-                    {/* Display Preferences */}
-                    <div className="mb-6">
-                        <h3 className="text-sm font-bold text-white/60 mb-4 uppercase tracking-wider">Display Preferences</h3>
-
-                        <div className="space-y-4">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <div className="text-white font-medium">Title Language</div>
-                                    <div className="text-sm text-white/40">Preferred language for titles</div>
-                                </div>
-                                <Dropdown
-                                    value={titleLanguage}
-                                    options={TITLE_LANGUAGE_OPTIONS}
-                                    onChange={(val) => updateField(setTitleLanguage, val as TitleLanguage)}
-                                />
-                            </div>
-
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <div className="text-white font-medium">Staff Name Language</div>
-                                    <div className="text-sm text-white/40">Preferred name order</div>
-                                </div>
-                                <Dropdown
-                                    value={staffNameLanguage}
-                                    options={STAFF_NAME_LANGUAGE_OPTIONS}
-                                    onChange={(val) => updateField(setStaffNameLanguage, val as StaffNameLanguage)}
-                                />
-                            </div>
-
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <div className="text-white font-medium">Scoring System</div>
-                                    <div className="text-sm text-white/40">How you rate anime/manga</div>
-                                </div>
-                                <Dropdown
-                                    value={scoreFormat}
-                                    options={SCORE_FORMAT_OPTIONS}
-                                    onChange={(val) => updateField(setScoreFormat, val as ScoreFormat)}
-                                />
-                            </div>
-
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <div className="text-white font-medium">Timezone</div>
-                                    <div className="text-sm text-white/40">For airing schedules</div>
-                                </div>
-                                <Dropdown
-                                    value={timezone}
-                                    options={TIMEZONE_OPTIONS}
-                                    onChange={(val) => updateField(setTimezone, val)}
-                                />
-                            </div>
+                    <div className="setting-row">
+                        <div className="setting-info">
+                            <span className="setting-label">Scoring System</span>
+                            <span className="setting-description">How you rate media</span>
                         </div>
+                        <Dropdown
+                            value={String(scoreFormat)}
+                            options={SCORE_FORMAT_OPTIONS}
+                            onChange={(val) => updateField(setScoreFormat, val as ScoreFormat)}
+                        />
                     </div>
 
-                    {/* Activity Settings */}
-                    <div className="mb-6">
-                        <h3 className="text-sm font-bold text-white/60 mb-4 uppercase tracking-wider">Activity</h3>
-
-                        <div className="space-y-4">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <div className="text-white font-medium">Activity Merge Time</div>
-                                    <div className="text-sm text-white/40">Combine activities within this time</div>
-                                </div>
-                                <Dropdown
-                                    value={String(activityMergeTime)}
-                                    options={ACTIVITY_MERGE_OPTIONS.map(o => ({ value: String(o.value), label: o.label }))}
-                                    onChange={(val) => updateField(setActivityMergeTime, parseInt(val))}
-                                />
-                            </div>
-
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <div className="text-white font-medium">Airing Notifications</div>
-                                    <div className="text-sm text-white/40">Get notified when episodes air</div>
-                                </div>
-                                <button
-                                    className={`w-14 h-8 rounded-full transition-all duration-300 ${airingNotifications ? 'bg-[var(--color-zen-accent)]' : 'bg-white/10'}`}
-                                    onClick={() => updateField(setAiringNotifications, !airingNotifications)}
-                                >
-                                    <div
-                                        className={`w-6 h-6 rounded-full bg-white shadow-lg transition-all duration-300 ${airingNotifications ? 'translate-x-7' : 'translate-x-1'}`}
-                                    />
-                                </button>
-                            </div>
+                    <div className="setting-row">
+                        <div className="setting-info">
+                            <span className="setting-label">Timezone</span>
                         </div>
-                    </div>
-
-                    {/* Content Settings */}
-                    <div className="mb-8">
-                        <h3 className="text-sm font-bold text-white/60 mb-4 uppercase tracking-wider">Content</h3>
-
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <div className="text-white font-medium">Show Adult Content</div>
-                                <div className="text-sm text-white/40">Display 18+ content in search</div>
-                            </div>
-                            <button
-                                className={`w-14 h-8 rounded-full transition-all duration-300 ${displayAdultContent ? 'bg-[var(--color-zen-accent)]' : 'bg-white/10'}`}
-                                onClick={() => updateField(setDisplayAdultContent, !displayAdultContent)}
-                            >
-                                <div
-                                    className={`w-6 h-6 rounded-full bg-white shadow-lg transition-all duration-300 ${displayAdultContent ? 'translate-x-7' : 'translate-x-1'}`}
-                                />
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* Error Message */}
-                    {error && (
-                        <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
-                            {error}
-                        </div>
-                    )}
-
-                    {/* Action Buttons */}
-                    <div className="flex gap-4">
-                        <button
-                            onClick={handleClose}
-                            className="flex-1 py-3 px-6 rounded-xl font-bold text-white/60 transition-all hover:bg-white/5"
-                            style={{ border: '1px solid rgba(255, 255, 255, 0.1)' }}
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            onClick={handleSave}
-                            disabled={isSaving || !hasChanges}
-                            className="flex-1 py-3 px-6 rounded-xl font-bold text-black transition-all flex items-center justify-center gap-2"
-                            style={{
-                                background: hasChanges ? 'var(--color-zen-accent)' : 'rgba(255, 255, 255, 0.1)',
-                                color: hasChanges ? '#000' : 'rgba(255, 255, 255, 0.4)',
-                                opacity: isSaving ? 0.6 : 1,
-                            }}
-                        >
-                            {isSaving ? (
-                                'Saving...'
-                            ) : (
-                                <>
-                                    <CheckIcon size={18} />
-                                    Save Changes
-                                </>
-                            )}
-                        </button>
+                        <Dropdown
+                            value={timezone}
+                            options={TIMEZONE_OPTIONS}
+                            onChange={(val) => updateField(setTimezone, val)}
+                        />
                     </div>
                 </div>
             </div>
 
-            {/* Unsaved Changes Confirmation */}
+            <div className="setting-group">
+                <h3 className="setting-group-title">Activity & Content</h3>
+                <div role="list" className="setting-list" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div className="setting-row">
+                        <div className="setting-info">
+                            <span className="setting-label">Activity Merge Time</span>
+                            <span className="setting-description">Combine activities within this time</span>
+                        </div>
+                        <Dropdown
+                            value={String(activityMergeTime)}
+                            options={ACTIVITY_MERGE_OPTIONS.map(o => ({ value: String(o.value), label: o.label }))}
+                            onChange={(val) => updateField(setActivityMergeTime, parseInt(val))}
+                        />
+                    </div>
+
+                    <div className="setting-row">
+                        <div className="setting-info">
+                            <span className="setting-label">Airing Notifications</span>
+                        </div>
+                        <button
+                            className={`toggle-switch ${airingNotifications ? 'active' : ''}`}
+                            onClick={() => updateField(setAiringNotifications, !airingNotifications)}
+                        />
+                    </div>
+
+                    <div className="setting-row">
+                        <div className="setting-info">
+                            <span className="setting-label">Show Adult Content</span>
+                            <span className="setting-description">Display 18+ content</span>
+                        </div>
+                        <button
+                            className={`toggle-switch ${displayAdultContent ? 'active' : ''}`}
+                            onClick={() => updateField(setDisplayAdultContent, !displayAdultContent)}
+                        />
+                    </div>
+                </div>
+            </div>
+
+            {error && (
+                <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+                    {error}
+                </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="flex gap-4 mt-8">
+                {isModal && (
+                    <button
+                        onClick={handleClose}
+                        className="flex-1 py-3 px-6 rounded-xl font-bold text-white/60 transition-all hover:bg-white/5"
+                        style={{ border: '1px solid rgba(255, 255, 255, 0.1)' }}
+                    >
+                        Cancel
+                    </button>
+                )}
+                <button
+                    onClick={handleSave}
+                    disabled={isSaving || !hasChanges}
+                    className={`flex-1 py-3 px-6 rounded-xl font-bold transition-all flex items-center justify-center gap-2 ${!isModal ? 'w-full' : ''}`}
+                    style={{
+                        background: hasChanges ? 'var(--theme-accent-primary)' : 'rgba(255, 255, 255, 0.1)',
+                        color: hasChanges ? '#fff' : 'rgba(255, 255, 255, 0.4)',
+                        opacity: isSaving ? 0.6 : 1,
+                    }}
+                >
+                    {isSaving ? 'Saving...' : (
+                        <>
+                            <CheckIcon size={18} />
+                            Save Changes
+                        </>
+                    )}
+                </button>
+            </div>
+        </div>
+    );
+
+    if (isModal) {
+        return (
+            <>
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4"
+                    style={{ backgroundColor: 'rgba(0, 0, 0, 0.8)', backdropFilter: 'blur(8px)' }}
+                    onClick={(e) => e.target === e.currentTarget && handleClose()}
+                >
+                    {content}
+                </div>
+
+                <ConfirmDialog
+                    isOpen={showConfirmDialog}
+                    onConfirm={() => {
+                        setShowConfirmDialog(false);
+                        setHasChanges(false);
+                        onClose?.();
+                    }}
+                    onCancel={() => setShowConfirmDialog(false)}
+                />
+            </>
+        );
+    }
+
+    return (
+        <>
+            {content}
             <ConfirmDialog
                 isOpen={showConfirmDialog}
                 onConfirm={() => {
                     setShowConfirmDialog(false);
                     setHasChanges(false);
-                    onClose();
+                    // For embedded, maybe reload or just ignore?
                 }}
                 onCancel={() => setShowConfirmDialog(false)}
             />
         </>
     );
 };
+
+// Backward compatibility
+export const ProfileSettingsModal = (props: ProfileSettingsModalProps) => (
+    <ProfileSettings variant="modal" {...props} />
+);
 
 // Button component to open the profile settings modal
 interface ProfileSettingsButtonProps {

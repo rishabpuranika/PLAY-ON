@@ -180,10 +180,8 @@ export const SectionHeader: React.FC<SectionHeaderProps> = ({ title, subtitle, i
     return (
         <div style={{ marginBottom: '2rem' }}>
             <h2
-                className={className}
+                className={className || "text-3xl font-bold"}
                 style={{
-                    fontSize: '2rem',
-                    fontWeight: '700',
                     color: '#fff',
                     marginBottom: '0.5rem',
                     display: 'flex',
@@ -193,7 +191,7 @@ export const SectionHeader: React.FC<SectionHeaderProps> = ({ title, subtitle, i
                     letterSpacing: '-0.02em',
                     textShadow: '0 2px 10px rgba(0,0,0,0.3)',
                 }}>
-                {icon && <span style={{ fontSize: '2rem', filter: 'drop-shadow(0 0 10px rgba(255,255,255,0.2))' }}>{icon}</span>}
+                {icon && <span style={{ fontSize: 'inherit', filter: 'drop-shadow(0 0 10px rgba(255,255,255,0.2))' }}>{icon}</span>}
                 {title}
             </h2>
             {subtitle && (

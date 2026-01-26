@@ -195,8 +195,8 @@ import { AnimeExtensionManager } from './services/AnimeExtensionManager';
 
 function App() {
   // Detect mobile environment to disable heavy splash screen
-  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-  const [showSplash, setShowSplash] = useState(!isMobile);
+  // const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  const [showSplash, setShowSplash] = useState(true);
   useOfflineSync();
 
 

@@ -37,7 +37,7 @@ const MobileNav: React.FC = () => {
     ];
 
     return (
-        <div className="md:hidden fixed bottom-0 left-0 right-0 h-[60px] bg-[#0f0f13]/90 backdrop-blur-xl border-t border-white/5 z-50 flex items-center justify-around px-2 pb-safe">
+        <div className="md:hidden fixed bottom-0 left-0 right-0 h-[72px] bg-[#0f0f13]/90 backdrop-blur-xl border-t border-white/5 z-50 flex items-center justify-around px-2 pb-safe">
             {navItems.map((item) => (
                 <MobileNavItem
                     key={item.path}

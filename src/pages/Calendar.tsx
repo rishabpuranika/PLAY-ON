@@ -68,7 +68,7 @@ function CustomDropdown<T extends string | number>({
     const selectedOption = options.find(o => o.value === value);
 
     return (
-        <div className="relative z-50" ref={containerRef}>
+        <div className="relative z-40" ref={containerRef}>
             <motion.button
                 whileHover={{ scale: 1.02, backgroundColor: "rgba(255,255,255,0.1)" }}
                 whileTap={{ scale: 0.98 }}
@@ -90,7 +90,7 @@ function CustomDropdown<T extends string | number>({
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 5, scale: 0.95 }}
                         transition={{ duration: 0.15 }}
-                        className="absolute top-full left-0 mt-2 w-full min-w-[160px] max-h-[300px] overflow-y-auto bg-[#1a1a2e]/95 backdrop-blur-2xl border border-white/10 rounded-xl shadow-2xl p-1.5 z-50 no-scrollbar"
+                        className="absolute top-full left-0 mt-2 w-full min-w-[160px] max-h-[300px] overflow-y-auto bg-[#1a1a2e]/95 backdrop-blur-2xl border border-white/10 rounded-xl shadow-2xl p-1.5 z-40 no-scrollbar"
                     >
                         {options.map((opt) => (
                             <motion.button

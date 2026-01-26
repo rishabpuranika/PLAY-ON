@@ -306,7 +306,7 @@ function Notifications() {
                                             </div>
 
                                             {/* Time */}
-                                            <div className={`text-xs text-white/30 font-bold tabular-nums px-3 py-1 bg-white/5 rounded-full border border-white/5 font-mono whitespace-nowrap ${hasRoute ? 'group-hover:bg-white/10' : ''} transition-colors`}>
+                                            <div className={`text-[10px] text-white/30 font-bold tabular-nums px-2 py-0.5 bg-white/5 rounded-full border border-white/5 font-mono whitespace-nowrap ${hasRoute ? 'group-hover:bg-white/10' : ''} transition-colors`}>
                                                 {formatRelativeTime(notification.createdAt)}
                                             </div>
                                         </div>

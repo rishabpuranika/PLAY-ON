@@ -349,7 +349,7 @@ function Home() {
     // - Stats below
     return (
         <div className="h-full flex flex-col" style={{ maxWidth: '1800px', margin: '0 auto', height: 'calc(100vh - 120px)' }}>
-            <div className="flex flex-col gap-6 pb-2 px-2 overflow-y-auto">
+            <div className="flex flex-col gap-6 pb-2 px-2 overflow-y-auto no-scrollbar">
                 {/* Search Bar (Mobile/Desktop Home Only) */}
                 <div className="w-full">
                     <SearchBar />
