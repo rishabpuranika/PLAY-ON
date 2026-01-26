@@ -31,3 +31,8 @@ session_summary.md
 src/config/
 .env
 .env.*
+
+.agent
+*.apk
+*.idsig
+*.keystore
