@@ -1,8 +1,6 @@
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { invoke } from '@tauri-apps/api/core';
 import { exit } from '@tauri-apps/plugin-process';
 import { useNavigate } from 'react-router-dom';
-import { useSettings } from '../../context/SettingsContext';
 import { useAuth } from '../../hooks/useAuth';
 import { useAniListNotifications } from '../../hooks/useAniListNotifications';
 import { HistoryIcon, BellIcon, SettingsIcon, UsersIcon } from '../ui/Icons';
@@ -19,7 +17,6 @@ const isMacOS = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
  */
 function Titlebar() {
     const appWindow = getCurrentWindow();
-    const { settings } = useSettings();
     const navigate = useNavigate();
     const { isAuthenticated } = useAuth();
     const { unreadCount } = useAniListNotifications();
@@ -27,13 +24,8 @@ function Titlebar() {
     const handleMinimize = async () => { await appWindow.minimize(); };
     const handleMaximize = async () => { await appWindow.toggleMaximize(); };
     const handleClose = async () => {
-        if (settings.closeToTray) {
-            // Hide to tray instead of closing
-            await invoke('hide_window');
-        } else {
-            // Quit completely
-            await exit(0);
-        }
+        // Quit completely
+        await exit(0);
     };
 
     // Button styles

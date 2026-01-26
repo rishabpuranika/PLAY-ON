@@ -115,6 +115,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 console.log('Single Instance Deep link received:', event.payload);
                 handleDeepLink(event.payload);
             });
+
+            // Handle the URL inside Tauri (JS side) as requested
+            // This catches the standard tauri://open-url event which might be triggered by the native intent
+            await listen<string>("tauri://open-url", (event) => {
+                console.log("OAuth redirect (tauri://open-url):", event.payload);
+                if (event.payload) {
+                    handleDeepLink(event.payload);
+                }
+            });
         };
         initDeepLink();
 

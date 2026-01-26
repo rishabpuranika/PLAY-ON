@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { pickDirectory } from '../lib/fileSystem';
 
 import { useSettings } from '../context/SettingsContext';

@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { HomeIcon, LibraryIcon, CompassIcon, SettingsIcon, BookOpenIcon, CalendarIcon } from './Icons';
+import { HomeIcon, LibraryIcon, CompassIcon, BookOpenIcon, CalendarIcon } from './Icons';
 
 interface MobileNavItemProps {
     label: string;

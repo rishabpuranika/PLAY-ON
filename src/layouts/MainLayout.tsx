@@ -3,13 +3,11 @@ import { Outlet, useNavigate } from 'react-router-dom';
 import Sidebar from '../components/sidebar/Sidebar';
 import Titlebar from '../components/titlebar/Titlebar';
 import TabNavigation from '../components/ui/TabNavigation';
-import SearchBar from '../components/ui/SearchBar';
 import Breadcrumbs from '../components/ui/Breadcrumbs';
 
 import FloatingNowPlaying from '../components/ui/FloatingNowPlaying';
 import MobileNav from '../components/ui/MobileNav'; // Import MobileNav
 import { useGestures } from '../hooks/useGestures';
-import { useSearchBar } from '../context/SearchBarContext';
 import { useAuth } from '../hooks/useAuth';
 import { useSettings } from '../context/SettingsContext';
 
@@ -62,7 +60,7 @@ function MainLayout() {
         if (action === 'goForward') navigate(1);
     };
 
-    useGestures(containerRef, {
+    useGestures(containerRef as React.RefObject<HTMLElement>, {
         onSwipeRight: () => {
             if (settings.gestures.goBack === 'swipeRight') executeAction('goBack');
             if (settings.gestures.goForward === 'swipeRight') executeAction('goForward');

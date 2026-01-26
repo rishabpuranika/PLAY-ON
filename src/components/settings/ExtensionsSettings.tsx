@@ -587,7 +587,9 @@ export default function ExtensionsSettings() {
                                         <div style={{
                                             fontSize: 12,
                                             color: 'var(--color-text-muted)',
-                                            fontFamily: 'var(--font-mono)'
+                                            fontFamily: 'var(--font-mono)',
+                                            wordBreak: 'break-all',
+                                            lineHeight: '1.4'
                                         }}>
                                             {repo.url}
                                         </div>
