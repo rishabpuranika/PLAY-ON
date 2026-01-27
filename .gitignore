@@ -37,3 +37,4 @@ src/config/
 *.idsig
 *.keystore
 *.md
+*.ps1

@@ -712,7 +712,7 @@ function AdvancedSettings() {
                             {checkingUpdate ? 'Checking...' : 'Check for Updates'}
                         </button>
                         <a
-                            href="https://github.com/yourusername/play-on"
+                            href="https://github.com/rishabpuranika/PLAY-ON/tree/mobile"
                             target="_blank"
                             rel="noreferrer"
                             className="about-action-btn secondary"
@@ -720,7 +720,7 @@ function AdvancedSettings() {
                             GitHub
                         </a>
                         <a
-                            href="https://discord.gg/yourserver"
+                            href="https://discord.gg/FuyfEfsQEy"
                             target="_blank"
                             rel="noreferrer"
                             className="about-action-btn secondary"
