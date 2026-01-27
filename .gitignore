@@ -38,3 +38,4 @@ src/config/
 *.keystore
 *.md
 *.ps1
+commands.txt
