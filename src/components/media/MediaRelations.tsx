@@ -49,7 +49,7 @@ export function MediaRelations({ relations }: MediaRelationsProps) {
                 <div className="h-px flex-1 bg-white/10" />
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                 {validEdges.map((edge, index) => (
                     <div
                         key={`${edge.node.id}-${index}`}
@@ -91,7 +91,8 @@ export function MediaRelations({ relations }: MediaRelationsProps) {
 
                         {/* Title Below */}
                         <div className="mt-2 pl-1">
-                            <h3 className="text-sm font-semibold text-gray-200 line-clamp-1 group-hover:text-mint-tonic transition-colors">
+                            <h3 className="text-sm font-semibold text-gray-200 line-clamp-2 group-hover:text-mint-tonic transition-colors"
+                                title={edge.node.title.english || edge.node.title.romaji}>
                                 {edge.node.title.english || edge.node.title.romaji}
                             </h3>
                             <div className="flex items-center gap-2 mt-0.5">

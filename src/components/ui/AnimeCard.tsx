@@ -10,9 +10,10 @@ interface AnimeCardProps {
     isResuming?: boolean; // Optional loading state for resume action
     onDismiss?: () => void; // Optional dismiss callback for recommendations
     compact?: boolean;
+    titleBelow?: boolean;
 }
 
-const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onClick, progress, onResume, isResuming = false, onDismiss, compact = false }) => {
+const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onClick, progress, onResume, isResuming = false, onDismiss, compact = false, titleBelow = false }) => {
     const title = anime.title.english || anime.title.romaji;
     const episodes = anime.episodes || '?';
     const hasProgress = progress !== undefined;
@@ -171,7 +172,9 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onClick, progress, onResum
                         <span className="anime-card__format" style={compact ? { fontSize: '0.65rem', padding: '2px 6px' } : undefined}>{anime.format}</span>
                     )}
 
-                    <h3 className="anime-card__title" style={compact ? { fontSize: '0.9rem', marginBottom: '2px' } : undefined}>{title}</h3>
+                    {!titleBelow && (
+                        <h3 className="anime-card__title" style={compact ? { fontSize: '0.9rem', marginBottom: '2px' } : undefined}>{title}</h3>
+                    )}
                     {anime.averageScore && (
                         <div className="anime-card__meta">
                             <span className="anime-card__score" style={compact ? { fontSize: '0.75rem' } : undefined}>{anime.averageScore}% Match</span>
@@ -179,6 +182,21 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onClick, progress, onResum
                     )}
                 </div>
             </div>
+            {/* Title Below Card */}
+            {titleBelow && (
+                <div
+                    className="mt-2 text-sm font-semibold leading-tight text-gray-200"
+                    style={{
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden',
+                        textShadow: '0 1px 2px rgba(0,0,0,0.5)'
+                    }}
+                >
+                    {title}
+                </div>
+            )}
         </div>
     );
 };

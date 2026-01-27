@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
-import Breadcrumbs from '../components/ui/Breadcrumbs';
+
 
 import FloatingNowPlaying from '../components/ui/FloatingNowPlaying';
 import MobileNav from '../components/ui/MobileNav';

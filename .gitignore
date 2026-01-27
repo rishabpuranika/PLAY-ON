@@ -36,3 +36,4 @@ src/config/
 *.apk
 *.idsig
 *.keystore
+*.md

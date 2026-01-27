@@ -60,7 +60,9 @@ function getNotificationTitle(notification: any): string {
 function getNotificationDescription(notification: any): string {
     switch (notification.type) {
         case 'AIRING':
-            return notification.contexts?.join(' ') || `Episode ${notification.episode} aired`;
+            return notification.episode
+                ? `Episode ${notification.episode} has aired`
+                : notification.contexts?.join(' ') || `New episode has aired`;
         case 'ACTIVITY_MESSAGE':
             return notification.context || 'Sent you a message';
         case 'ACTIVITY_MENTION':
@@ -244,7 +246,7 @@ function Notifications() {
                                         hover={hasRoute}
                                         className={`bg-black/20 transition-colors duration-200 ${hasRoute ? 'hover:bg-white/5 active:scale-[0.99] hover:border-white/10 group-hover:border-[var(--color-zen-accent)]/30' : 'opacity-80'}`}
                                     >
-                                        <div className="grid grid-cols-[50px_1fr_auto] gap-4 items-center">
+                                        <div className="grid grid-cols-[50px_1fr] gap-4 items-center">
                                             {/* Icon/Avatar - Clickable for User Profile */}
                                             <div
                                                 className={`w-[50px] h-[50px] rounded-xl overflow-hidden bg-white/5 flex items-center justify-center border border-white/10 shadow-inner relative transition-colors ${notification.user ? 'cursor-pointer hover:border-white/40 z-10' : ''} ${hasRoute ? 'group-hover:border-white/20' : ''}`}
@@ -293,21 +295,22 @@ function Notifications() {
                                                 <div className="text-sm text-white/60 truncate mb-2">
                                                     {getNotificationDescription(notification)}
                                                 </div>
-                                                <div className="flex gap-2 items-center">
+                                                <div className="flex gap-2 items-center flex-wrap">
                                                     <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${typeColor.bg} ${typeColor.text} border ${typeColor.border}`}>
                                                         {formatNotificationType(notification.type)}
                                                     </span>
+
+                                                    {/* Time - Moved here */}
+                                                    <span className="text-[9px] text-white/30 font-mono font-medium">
+                                                        {formatRelativeTime(notification.createdAt)}
+                                                    </span>
+
                                                     {hint && (
                                                         <span className="text-[10px] text-white/40 font-medium">
                                                             {hint}
                                                         </span>
                                                     )}
                                                 </div>
-                                            </div>
-
-                                            {/* Time */}
-                                            <div className={`text-[10px] text-white/30 font-bold tabular-nums px-2 py-0.5 bg-white/5 rounded-full border border-white/5 font-mono whitespace-nowrap ${hasRoute ? 'group-hover:bg-white/10' : ''} transition-colors`}>
-                                                {formatRelativeTime(notification.createdAt)}
                                             </div>
                                         </div>
                                     </Card>

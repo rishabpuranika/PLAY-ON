@@ -183,7 +183,8 @@ function MangaReader() {
                 // If we found a local entry, use its data first
                 if (localEntry) {
                     if (localEntry.chapters) {
-                        setChapters(localEntry.chapters);
+                        // Enforce Descending Sort (Newest First)
+                        setChapters([...localEntry.chapters].sort((a, b) => b.number - a.number));
                     }
                 }
 
@@ -277,7 +278,9 @@ function MangaReader() {
                         source.getChapters(mangaId),
                     ]);
                     setManga(mangaInfo);
-                    setChapters(chapterList);
+                    // Enforce Descending Sort (Newest First)
+                    const sortedChapters = [...chapterList].sort((a, b) => b.number - a.number);
+                    setChapters(sortedChapters);
 
                     // Find current chapter in the list
                     const current = chapterList.find((c) => c.id === chapterId);
