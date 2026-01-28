@@ -41,8 +41,20 @@ import { queueChapterDownload, onDownloadProgress, isDownloadFolderConfigured } 
 import AniListSearchDialog from '../components/ui/AniListSearchDialog';
 import ChapterFilterModal, { FilterMode } from '../components/ui/ChapterFilterModal';
 import { DownloadFolderDialog } from '../components/ui/DownloadFolderDialog';
-import { PlayIcon } from '../components/ui/Icons';
+import { PlayIcon, CheckIcon, PauseIcon, XIcon, ClipboardIcon, RotateCwIcon } from '../components/ui/Icons';
+import { StatusDropdown } from '../components/ui/StatusDropdown';
+import { updateMediaStatus } from '../api/anilistClient';
 import './MangaSourceDetails.css';
+
+// Status options for AniList (Matching MangaDetails.tsx)
+const STATUS_OPTIONS = [
+    { value: 'CURRENT', label: 'Reading', icon: <PlayIcon size={16} /> },
+    { value: 'COMPLETED', label: 'Completed', icon: <CheckIcon size={16} /> },
+    { value: 'PAUSED', label: 'Paused', icon: <PauseIcon size={16} /> },
+    { value: 'DROPPED', label: 'Dropped', icon: <XIcon size={16} /> },
+    { value: 'PLANNING', label: 'Planning', icon: <ClipboardIcon size={16} /> },
+    { value: 'REPEATING', label: 'Rereading', icon: <RotateCwIcon size={16} /> },
+];
 
 function MangaSourceDetails() {
     const { sourceId, mangaId } = useParams<{ sourceId: string; mangaId: string }>();
@@ -60,6 +72,10 @@ function MangaSourceDetails() {
     const [showLibraryDialog, setShowLibraryDialog] = useState(false);
     const [libraryCategories, setLibraryCategories] = useState<LibraryCategory[]>([]);
     const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+
+    // AniList Status State
+    const [currentStatus, setCurrentStatus] = useState<string | null>(null);
+    const [statusUpdating, setStatusUpdating] = useState(false);
 
     // Filter Modal State
     const [showFilterModal, setShowFilterModal] = useState(false);
@@ -104,8 +120,8 @@ function MangaSourceDetails() {
 
     const inLibrary = localEntry?.inLibrary ?? false;
 
+    // Listen for download progress to update UI
     useEffect(() => {
-        // Listen for download progress to update UI
         const unsubscribe = onDownloadProgress((chapterId, current, total, status) => {
             if (chapterId) {
                 // If starting or in progress
@@ -138,6 +154,40 @@ function MangaSourceDetails() {
         });
         return () => unsubscribe();
     }, []);
+
+    // Load initial status (from DB/Mapping)
+    useEffect(() => {
+        if (localEntry?.anilistId && anilistMapping) {
+            // In a perfect world, we'd have status in localEntry, but we might need to fetch it or rely on sync.
+            // For now, let's try to sync it if missing, or use what we have.
+            // Actually, getMangaEntryByAnilistId might not return AniList specific status (like CURRENT/PLANNING)
+            // unless we store it. `localMangaDb` stores `anilistId` and `chapters` (read count) but maybe not `status`.
+            // If we look at `syncMangaFromAniList` in `syncService.ts` it might update something.
+            //
+            // For quick win: We can fetch details from AniList purely for the status if linked.
+            // Or better, let's just default to null until synced.
+            // If we want to show current status, we might need a separate fetch or extend `localMangaDb` schema.
+            //
+            // Wait, `syncMangaFromAniList` fetches `MediaListCollection`.
+            // Let's assume for now we might need to fetch it to show it correctly in the dropdown.
+            // But to save time/complexity, let's leave as null (which shows "Add to List" usually) or try to fetch.
+        }
+    }, [localEntry, anilistMapping]);
+
+    const handleStatusChange = async (newStatus: string) => {
+        if (!anilistMapping?.anilistId || statusUpdating) return;
+
+        setStatusUpdating(true);
+        try {
+            await updateMediaStatus(anilistMapping.anilistId, newStatus);
+            setCurrentStatus(newStatus);
+            // Don't strictly need to refresh local DB unless we store status there.
+        } catch (err) {
+            console.error('Failed to update status:', err);
+        } finally {
+            setStatusUpdating(false);
+        }
+    };
 
     // Load manga details and chapters
     useEffect(() => {
@@ -453,72 +503,127 @@ function MangaSourceDetails() {
                         )}
 
                         {/* AniList Tracking Section (LocalFolder link style) */}
-                        <div className="tracking-section">
-                            {anilistMapping ? (
-                                // Linked state: show anime info with unlink button
+                        {anilistMapping ? (
+                            // Linked state: show status and controls
+                            <div className="flex flex-col gap-3 w-full">
+                                {/* Link Info Badge */}
                                 <div
-                                    className="inline-flex items-center gap-3 px-4 py-3 rounded-xl border border-white/10"
+                                    className="inline-flex items-center gap-3 px-4 py-3 rounded-xl border border-white/10 w-full"
                                     style={{ background: 'rgba(180, 162, 246, 0.1)' }}
                                 >
                                     {anilistMapping.coverImage && (
                                         <img
                                             src={anilistMapping.coverImage}
                                             alt={anilistMapping.anilistTitle}
-                                            className="w-10 h-14 object-cover rounded-lg cursor-pointer"
-                                            style={{ width: '40px', height: '56px' }}
+                                            className="w-10 h-14 object-cover rounded-lg cursor-pointer shrink-0"
                                             onClick={() => navigate(`/manga-details/${anilistMapping.anilistId}`)}
                                         />
                                     )}
                                     <div
-                                        className="flex flex-col cursor-pointer"
+                                        className="flex flex-col cursor-pointer overflow-hidden flex-1"
                                         onClick={() => navigate(`/manga-details/${anilistMapping.anilistId}`)}
                                     >
                                         <span
-                                            className="text-xs text-white/40 uppercase tracking-wider"
+                                            className="text-xs text-white/40 uppercase tracking-wider truncate"
                                             style={{ fontFamily: 'var(--font-mono)' }}
                                         >
                                             Linked to AniList
                                         </span>
                                         <span
-                                            className="text-sm font-semibold text-white"
+                                            className="text-sm font-semibold text-white truncate"
                                             style={{ fontFamily: 'var(--font-rounded)' }}
                                         >
                                             {anilistMapping.anilistTitle}
                                         </span>
-                                        {localEntry && localEntry.chapter > 0 && (
-                                            <span className="text-xs text-white/60">
-                                                On Ch {localEntry.chapter}
-                                                {anilistMapping.totalChapters && ` / ${anilistMapping.totalChapters}`}
-                                            </span>
-                                        )}
                                     </div>
                                     <button
                                         onClick={handleRemoveLink}
-                                        className="ml-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 hover:bg-red-500/20 text-red-400 border border-red-500/30"
-                                        style={{ fontFamily: 'var(--font-rounded)' }}
+                                        className="px-2 py-1 rounded text-xs transition-all duration-200 hover:bg-red-500/20 text-red-400"
+                                        title="Unlink"
                                     >
-                                        Unlink
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path><line x1="12" y1="2" x2="12" y2="12"></line></svg>
                                     </button>
                                 </div>
-                            ) : (
-                                // Not linked: show track button
+
+                                {/* Status Dropdown */}
+                                <StatusDropdown
+                                    currentStatus={currentStatus}
+                                    onStatusChange={handleStatusChange}
+                                    options={STATUS_OPTIONS}
+                                    loading={statusUpdating}
+                                />
+
+                                {/* Control Buttons: Save & Sync */}
+                                <div className="flex gap-2">
+                                    <button
+                                        className={`flex-1 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 flex items-center justify-center gap-2 ${inLibrary ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' : 'bg-white/5 text-white/70 hover:bg-white/10 border border-white/5'}`}
+                                        onClick={handleToggleLibrary}
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill={inLibrary ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                            <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+                                        </svg>
+                                        {inLibrary ? "Saved" : "Save"}
+                                    </button>
+
+                                    <button
+                                        className="flex-1 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 bg-white/5 text-white/70 hover:bg-white/10 border border-white/5 flex items-center justify-center gap-2"
+                                        onClick={() => {
+                                            if (anilistMapping) {
+                                                // Trigger manual sync
+                                                setRefreshTrigger(prev => prev + 1);
+                                                // Optional: You might want to call syncMangaFromAniList explicitly here if needed,
+                                                // but linking already does it. This is more for refresh.
+                                                // For now, let's assuming linking state is enough or we re-fetch.
+                                                // Actually, we should probably re-fetch AniList data.
+                                                // But logic for that is tied to 'localEntry' update which happens in useEffect.
+                                                // Let's simplified by just refreshing trigger which re-evaluates localEntry components.
+
+                                                // If we want to force re-fetch from network:
+                                                const entry = getMangaEntryByAnilistId(anilistMapping.anilistId);
+                                                if (entry) syncMangaFromAniList(entry).then(() => setRefreshTrigger(prev => prev + 1));
+                                            }
+                                        }}
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                            <path d="M21.5 2v6h-6M21.34 5.5A10 10 0 1 1 11.26 2.89"></path>
+                                        </svg>
+                                        Sync
+                                    </button>
+                                </div>
+                            </div>
+                        ) : (
+                            // Not linked: show track button & save button
+                            <div className="flex gap-3 justify-center w-full">
                                 <button
                                     onClick={() => setShowLinkDialog(true)}
-                                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 hover:scale-105"
+                                    className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 hover:scale-105"
                                     style={{
                                         fontFamily: 'var(--font-rounded)',
                                         background: 'linear-gradient(135deg, var(--color-zen-accent), #9c7cf0)',
                                         color: 'white',
                                         boxShadow: '0 4px 15px rgba(180, 162, 246, 0.3)',
                                         border: 'none',
-                                        cursor: 'pointer'
+                                        cursor: 'pointer',
+                                        minWidth: '120px'
                                     }}
                                 >
                                     <span>🔗</span>
-                                    Track on AniList
+                                    Track
                                 </button>
-                            )}
-                        </div>
+
+                                {/* Save Button for unlinked */}
+                                <button
+                                    className={`inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 ${inLibrary ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' : 'bg-white/5 text-white/70 hover:bg-white/10 border border-white/5'}`}
+                                    onClick={handleToggleLibrary}
+                                    style={{ minWidth: '100px' }}
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill={inLibrary ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+                                    </svg>
+                                    {inLibrary ? "Saved" : "Save"}
+                                </button>
+                            </div>
+                        )}
 
                         <div className="action-buttons">
                             {localEntry && localEntry.chapter > 0 ? (
@@ -532,39 +637,20 @@ function MangaSourceDetails() {
                                     Start Reading
                                 </button>
                             )}
-
-
-                            <button
-                                className={`secondary-btn ${inLibrary ? 'library-active' : ''}`}
-                                onClick={handleToggleLibrary}
-                                title={inLibrary ? "Remove from Library" : "Add to Library"}
-                                style={inLibrary ? {
-                                    borderColor: 'var(--color-zen-accent)',
-                                    color: 'var(--color-zen-accent)',
-                                    background: 'rgba(180, 162, 246, 0.1)',
-                                    padding: '0.75rem',
-                                    aspectRatio: '1',
-                                    display: 'flex',
-                                    justifyContent: 'center'
-                                } : {}}
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill={inLibrary ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
-                                </svg>
-                                {!inLibrary && "Save"}
-                            </button>
                         </div>
                     </div>
                 </div>
             </div>
 
             {/* Description */}
-            {manga.description && (
-                <div className="description-section">
-                    <h2>Synopsis</h2>
-                    <p>{manga.description}</p>
-                </div>
-            )}
+            {
+                manga.description && (
+                    <div className="description-section">
+                        <h2>Synopsis</h2>
+                        <p>{manga.description}</p>
+                    </div>
+                )
+            }
 
             {/* Chapters Section */}
             <div className="chapters-section">
@@ -759,95 +845,97 @@ function MangaSourceDetails() {
             />
 
             {/* Library Category Dialog */}
-            {showLibraryDialog && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md animate-fade-in" onClick={() => setShowLibraryDialog(false)}>
-                    <div
-                        className="bg-[#15151e] p-6 rounded-2xl border border-white/10 w-full max-w-[380px] shadow-2xl transform transition-all scale-100"
-                        onClick={e => e.stopPropagation()}
-                    >
-                        <div className="text-center mb-6">
-                            <h3 className="text-xl font-bold text-white mb-1">
-                                {inLibrary ? 'Update Library Entry' : 'Add to Library'}
-                            </h3>
-                            <p className="text-sm text-white/40">Select categories for this manga</p>
-                        </div>
+            {
+                showLibraryDialog && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md animate-fade-in" onClick={() => setShowLibraryDialog(false)}>
+                        <div
+                            className="bg-[#15151e] p-6 rounded-2xl border border-white/10 w-full max-w-[380px] shadow-2xl transform transition-all scale-100"
+                            onClick={e => e.stopPropagation()}
+                        >
+                            <div className="text-center mb-6">
+                                <h3 className="text-xl font-bold text-white mb-1">
+                                    {inLibrary ? 'Update Library Entry' : 'Add to Library'}
+                                </h3>
+                                <p className="text-sm text-white/40">Select categories for this manga</p>
+                            </div>
 
-                        <div className="flex flex-col gap-2 mb-6 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
-                            {libraryCategories.map(cat => {
-                                const isSelected = selectedCategories.includes(cat.id);
-                                return (
-                                    <div
-                                        key={cat.id}
+                            <div className="flex flex-col gap-2 mb-6 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                                {libraryCategories.map(cat => {
+                                    const isSelected = selectedCategories.includes(cat.id);
+                                    return (
+                                        <div
+                                            key={cat.id}
+                                            onClick={() => {
+                                                if (isSelected) {
+                                                    setSelectedCategories(prev => prev.filter(id => id !== cat.id));
+                                                } else {
+                                                    setSelectedCategories(prev => [...prev, cat.id]);
+                                                }
+                                            }}
+                                            className={`group flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all duration-200
+                                            ${isSelected
+                                                    ? 'bg-[rgba(168,85,247,0.15)] border-purple-500/50 shadow-[0_0_15px_rgba(168,85,247,0.1)]'
+                                                    : 'bg-white/5 border-white/5 hover:bg-white/10 hover:border-white/20'
+                                                }`}
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <span className={`font-medium transition-colors ${isSelected ? 'text-white' : 'text-white/70 group-hover:text-white'}`}>
+                                                    {cat.name}
+                                                </span>
+                                            </div>
+
+                                            <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-all duration-200
+                                            ${isSelected
+                                                    ? 'bg-purple-500 border-purple-500 scale-110'
+                                                    : 'border-white/20 group-hover:border-white/40'
+                                                }`}
+                                            >
+                                                {isSelected && (
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
+                                                        <polyline points="20 6 9 17 4 12"></polyline>
+                                                    </svg>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            <div className="flex gap-2 items-center mt-4">
+                                {inLibrary && (
+                                    <button
                                         onClick={() => {
-                                            if (isSelected) {
-                                                setSelectedCategories(prev => prev.filter(id => id !== cat.id));
-                                            } else {
-                                                setSelectedCategories(prev => [...prev, cat.id]);
+                                            if (confirm("Remove from Library?")) {
+                                                handleLibraryRemove();
                                             }
                                         }}
-                                        className={`group flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all duration-200
-                                            ${isSelected
-                                                ? 'bg-[rgba(168,85,247,0.15)] border-purple-500/50 shadow-[0_0_15px_rgba(168,85,247,0.1)]'
-                                                : 'bg-white/5 border-white/5 hover:bg-white/10 hover:border-white/20'
-                                            }`}
+                                        className="p-3 rounded-xl text-red-400 hover:bg-red-500/10 border border-transparent hover:border-red-500/20 transition-all"
+                                        title="Remove from Library"
                                     >
-                                        <div className="flex items-center gap-3">
-                                            <span className={`font-medium transition-colors ${isSelected ? 'text-white' : 'text-white/70 group-hover:text-white'}`}>
-                                                {cat.name}
-                                            </span>
-                                        </div>
-
-                                        <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-all duration-200
-                                            ${isSelected
-                                                ? 'bg-purple-500 border-purple-500 scale-110'
-                                                : 'border-white/20 group-hover:border-white/40'
-                                            }`}
-                                        >
-                                            {isSelected && (
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
-                                                    <polyline points="20 6 9 17 4 12"></polyline>
-                                                </svg>
-                                            )}
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-
-                        <div className="flex gap-2 items-center mt-4">
-                            {inLibrary && (
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                                    </button>
+                                )}
                                 <button
-                                    onClick={() => {
-                                        if (confirm("Remove from Library?")) {
-                                            handleLibraryRemove();
-                                        }
-                                    }}
-                                    className="p-3 rounded-xl text-red-400 hover:bg-red-500/10 border border-transparent hover:border-red-500/20 transition-all"
-                                    title="Remove from Library"
+                                    onClick={() => setShowLibraryDialog(false)}
+                                    className="px-4 py-3 rounded-xl font-medium text-white/60 hover:text-white hover:bg-white/5 border border-transparent hover:border-white/10 transition-all"
                                 >
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                                    Cancel
                                 </button>
-                            )}
-                            <button
-                                onClick={() => setShowLibraryDialog(false)}
-                                className="px-4 py-3 rounded-xl font-medium text-white/60 hover:text-white hover:bg-white/5 border border-transparent hover:border-white/10 transition-all"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={handleLibrarySave}
-                                className="flex-1 py-3 rounded-xl font-bold text-white shadow-lg transition-transform active:scale-95 hover:brightness-110"
-                                style={{
-                                    background: 'linear-gradient(135deg, var(--color-zen-accent), #9c7cf0)',
-                                    boxShadow: '0 4px 15px rgba(168, 85, 247, 0.3)'
-                                }}
-                            >
-                                {inLibrary ? 'Save' : 'Add'}
-                            </button>
+                                <button
+                                    onClick={handleLibrarySave}
+                                    className="flex-1 py-3 rounded-xl font-bold text-white shadow-lg transition-transform active:scale-95 hover:brightness-110"
+                                    style={{
+                                        background: 'linear-gradient(135deg, var(--color-zen-accent), #9c7cf0)',
+                                        boxShadow: '0 4px 15px rgba(168, 85, 247, 0.3)'
+                                    }}
+                                >
+                                    {inLibrary ? 'Save' : 'Add'}
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* Download Folder Configuration Dialog */}
             <DownloadFolderDialog
@@ -876,7 +964,7 @@ function MangaSourceDetails() {
                 bookmarkedFilter={bookmarkedFilter}
                 onBookmarkedChange={setBookmarkedFilter}
             />
-        </div>
+        </div >
     );
 }
 

@@ -476,41 +476,89 @@ function AnimeSourceDetails() {
 
             {/* Library Dialog */}
             {showLibraryDialog && (
-                <div className="modal-overlay" onClick={() => setShowLibraryDialog(false)}>
-                    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-                        <h3>{inLibrary ? 'Update Library' : 'Add to Library'}</h3>
-
-                        <div className="category-selector">
-                            <p className="category-label">Categories:</p>
-                            {libraryCategories.map((cat) => (
-                                <label key={cat.id} className="category-checkbox">
-                                    <input
-                                        type="checkbox"
-                                        checked={selectedCategories.includes(cat.id)}
-                                        onChange={(e) => {
-                                            if (e.target.checked) {
-                                                setSelectedCategories([...selectedCategories, cat.id]);
-                                            } else {
-                                                setSelectedCategories(selectedCategories.filter(id => id !== cat.id));
-                                            }
-                                        }}
-                                    />
-                                    {cat.name}
-                                </label>
-                            ))}
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md animate-fade-in" onClick={() => setShowLibraryDialog(false)}>
+                    <div
+                        className="bg-[#15151e] p-6 rounded-2xl border border-white/10 w-full max-w-[380px] shadow-2xl transform transition-all scale-100"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <div className="text-center mb-6">
+                            <h3 className="text-xl font-bold text-white mb-1">
+                                {inLibrary ? 'Update Library Entry' : 'Add to Library'}
+                            </h3>
+                            <p className="text-sm text-white/40">Select categories for this anime</p>
                         </div>
 
-                        <div className="modal-actions">
+                        <div className="flex flex-col gap-2 mb-6 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                            {libraryCategories.map(cat => {
+                                const isSelected = selectedCategories.includes(cat.id);
+                                return (
+                                    <div
+                                        key={cat.id}
+                                        onClick={() => {
+                                            if (isSelected) {
+                                                setSelectedCategories(prev => prev.filter(id => id !== cat.id));
+                                            } else {
+                                                setSelectedCategories(prev => [...prev, cat.id]);
+                                            }
+                                        }}
+                                        className={`group flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all duration-200
+                                        ${isSelected
+                                                ? 'bg-[rgba(168,85,247,0.15)] border-purple-500/50 shadow-[0_0_15px_rgba(168,85,247,0.1)]'
+                                                : 'bg-white/5 border-white/5 hover:bg-white/10 hover:border-white/20'
+                                            }`}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <span className={`font-medium transition-colors ${isSelected ? 'text-white' : 'text-white/70 group-hover:text-white'}`}>
+                                                {cat.name}
+                                            </span>
+                                        </div>
+
+                                        <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-all duration-200
+                                        ${isSelected
+                                                ? 'bg-purple-500 border-purple-500 scale-110'
+                                                : 'border-white/20 group-hover:border-white/40'
+                                            }`}
+                                        >
+                                            {isSelected && (
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
+                                                    <polyline points="20 6 9 17 4 12"></polyline>
+                                                </svg>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        <div className="flex gap-2 items-center mt-4">
                             {inLibrary && (
-                                <button className="danger-btn" onClick={handleLibraryRemove}>
-                                    Remove from Library
+                                <button
+                                    onClick={() => {
+                                        if (confirm("Remove from Library?")) {
+                                            handleLibraryRemove();
+                                        }
+                                    }}
+                                    className="p-3 rounded-xl text-red-400 hover:bg-red-500/10 border border-transparent hover:border-red-500/20 transition-all"
+                                    title="Remove from Library"
+                                >
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                                 </button>
                             )}
-                            <button className="secondary-btn" onClick={() => setShowLibraryDialog(false)}>
+                            <button
+                                onClick={() => setShowLibraryDialog(false)}
+                                className="px-4 py-3 rounded-xl font-medium text-white/60 hover:text-white hover:bg-white/5 border border-transparent hover:border-white/10 transition-all"
+                            >
                                 Cancel
                             </button>
-                            <button className="primary-btn" onClick={handleLibrarySave}>
-                                {inLibrary ? 'Update' : 'Add to Library'}
+                            <button
+                                onClick={handleLibrarySave}
+                                className="flex-1 py-3 rounded-xl font-bold text-white shadow-lg transition-transform active:scale-95 hover:brightness-110"
+                                style={{
+                                    background: 'linear-gradient(135deg, var(--color-zen-accent), #9c7cf0)',
+                                    boxShadow: '0 4px 15px rgba(168, 85, 247, 0.3)'
+                                }}
+                            >
+                                {inLibrary ? 'Save' : 'Add'}
                             </button>
                         </div>
                     </div>
