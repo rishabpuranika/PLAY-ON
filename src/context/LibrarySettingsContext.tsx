@@ -28,6 +28,10 @@ export interface LibrarySettings {
         showTabs: boolean;
         showCount: boolean;
     };
+    autoUpdate: {
+        enabled: boolean;
+        interval: number; // in minutes
+    };
 }
 
 const defaultSettings: LibrarySettings = {
@@ -54,6 +58,10 @@ const defaultSettings: LibrarySettings = {
         showTabs: true,
         showCount: true,
     },
+    autoUpdate: {
+        enabled: false,
+        interval: 12, // Default 12 hours
+    }
 };
 
 interface LibrarySettingsContextType {
@@ -65,6 +73,7 @@ interface LibrarySettingsContextType {
     updateDisplay: (key: keyof LibrarySettings['display'], value: any) => void;
     updateBadge: (key: keyof LibrarySettings['display']['showBadges'], value: boolean) => void;
     resetFilters: () => void;
+    updateAutoSync: (key: keyof LibrarySettings['autoUpdate'], value: any) => void;
 }
 
 const LibrarySettingsContext = createContext<LibrarySettingsContextType | undefined>(undefined);
@@ -72,7 +81,12 @@ const LibrarySettingsContext = createContext<LibrarySettingsContextType | undefi
 export function LibrarySettingsProvider({ children }: { children: ReactNode }) {
     const [settings, setSettings] = useState<LibrarySettings>(() => {
         const saved = localStorage.getItem('library_settings');
-        return saved ? JSON.parse(saved) : defaultSettings;
+        if (saved) {
+            const parsed = JSON.parse(saved);
+            // Merge defaults to handle new fields (like autoUpdate) missing from old saves
+            return { ...defaultSettings, ...parsed, autoUpdate: { ...defaultSettings.autoUpdate, ...parsed.autoUpdate } };
+        }
+        return defaultSettings;
     });
 
     useEffect(() => {
@@ -128,6 +142,13 @@ export function LibrarySettingsProvider({ children }: { children: ReactNode }) {
         }));
     }
 
+    const updateAutoSync = (key: keyof LibrarySettings['autoUpdate'], value: any) => {
+        setSettings(prev => ({
+            ...prev,
+            autoUpdate: { ...prev.autoUpdate, [key]: value }
+        }));
+    };
+
     return (
         <LibrarySettingsContext.Provider value={{
             settings,
@@ -137,7 +158,8 @@ export function LibrarySettingsProvider({ children }: { children: ReactNode }) {
             toggleSortDirection,
             updateDisplay,
             updateBadge,
-            resetFilters
+            resetFilters,
+            updateAutoSync
         }}>
             {children}
         </LibrarySettingsContext.Provider>

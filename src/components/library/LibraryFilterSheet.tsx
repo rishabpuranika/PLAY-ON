@@ -1,4 +1,5 @@
 import { motion, AnimatePresence } from 'motion/react';
+import { useState } from 'react';
 import { useLibrarySettings, SortOption, DisplayMode } from '../../context/LibrarySettingsContext';
 
 interface FilterTabProps {
@@ -166,8 +167,8 @@ interface LibraryFilterSheetProps {
 }
 
 export default function LibraryFilterSheet({ isOpen, onClose }: LibraryFilterSheetProps) {
-    const { settings, updateFilter, updateSort, toggleSortDirection, updateDisplay, updateBadge, resetFilters } = useLibrarySettings();
-    const [tab, setTab] = useState<'Filter' | 'Sort' | 'Display'>('Filter');
+    const { settings, updateFilter, updateSort, toggleSortDirection, updateDisplay, updateBadge, resetFilters, updateAutoSync } = useLibrarySettings();
+    const [tab, setTab] = useState<'Filter' | 'Sort' | 'Display' | 'Auto-Sync'>('Filter');
 
     return (
         <AnimatePresence>
@@ -190,7 +191,7 @@ export default function LibraryFilterSheet({ isOpen, onClose }: LibraryFilterShe
                         {/* Header/Tabs */}
                         <div className="flex items-center justify-between px-4 border-b border-white/5">
                             <div className="flex-1 flex justify-around">
-                                {['Filter', 'Sort', 'Display'].map((t) => (
+                                {['Filter', 'Sort', 'Display', 'Auto-Sync'].map((t) => (
                                     <button
                                         key={t}
                                         onClick={() => setTab(t as any)}
@@ -219,6 +220,7 @@ export default function LibraryFilterSheet({ isOpen, onClose }: LibraryFilterShe
                             {tab === 'Filter' && <FilterTab settings={settings} updateFilter={updateFilter} />}
                             {tab === 'Sort' && <SortTab settings={settings} updateSort={updateSort} toggleSortDirection={toggleSortDirection} />}
                             {tab === 'Display' && <DisplayTab settings={settings} updateDisplay={updateDisplay} updateBadge={updateBadge} />}
+                            {tab === 'Auto-Sync' && <AutoSyncTab settings={settings} updateAutoSync={updateAutoSync} />}
                         </div>
                     </motion.div>
                 </>
@@ -226,4 +228,64 @@ export default function LibraryFilterSheet({ isOpen, onClose }: LibraryFilterShe
         </AnimatePresence>
     );
 }
-import { useState } from 'react';
+
+interface AutoSyncTabProps {
+    settings: ReturnType<typeof useLibrarySettings>['settings'];
+    updateAutoSync: ReturnType<typeof useLibrarySettings>['updateAutoSync'];
+}
+
+function AutoSyncTab({ settings, updateAutoSync }: AutoSyncTabProps) {
+    const intervals = [
+        { label: 'Every 6 Hours', value: 6 * 60 },
+        { label: 'Every 12 Hours', value: 12 * 60 },
+        { label: 'Every 24 Hours', value: 24 * 60 },
+        //{ label: 'Every Week', value: 7 * 24 * 60 },
+    ];
+
+    return (
+        <div className="flex flex-col gap-6 p-4 pb-20">
+            <div className="flex items-center justify-between py-3">
+                <div className="flex flex-col">
+                    <span className="text-white text-base font-medium">Enable Auto-Sync</span>
+                    <span className="text-xs text-white/50 mt-1">Automatically check for manga updates</span>
+                </div>
+                <div
+                    className={`w-12 h-6 rounded-full p-1 cursor-pointer transition-colors flex-shrink-0 ${settings.autoUpdate?.enabled ? 'bg-[#9213ec]' : 'bg-white/20'}`}
+                    onClick={() => updateAutoSync('enabled', !settings.autoUpdate?.enabled)}
+                >
+                    <motion.div
+                        className="w-4 h-4 rounded-full bg-white shadow-sm"
+                        animate={{ x: settings.autoUpdate?.enabled ? 24 : 0 }}
+                        transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                    />
+                </div>
+            </div>
+
+            {settings.autoUpdate?.enabled && (
+                <div className="space-y-3">
+                    <h3 className="text-sm font-semibold text-white/50 uppercase tracking-wider">Update Frequency</h3>
+                    <div className="flex flex-col gap-2">
+                        {intervals.map((interval) => (
+                            <div
+                                key={interval.value}
+                                className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-all ${settings.autoUpdate?.interval === interval.value
+                                    ? 'bg-[#9213ec]/20 border-[#9213ec]'
+                                    : 'bg-white/5 border-transparent hover:bg-white/10'
+                                    }`}
+                                onClick={() => updateAutoSync('interval', interval.value)}
+                            >
+                                <span className={settings.autoUpdate?.interval === interval.value ? 'text-[#9213ec] font-medium' : 'text-white/80'}>
+                                    {interval.label}
+                                </span>
+                                {settings.autoUpdate?.interval === interval.value && (
+                                    <div className="w-2 h-2 rounded-full bg-[#9213ec]" />
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+        </div>
+    )
+}
+

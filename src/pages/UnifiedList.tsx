@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, forwardRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@apollo/client';
 import AnimeCard from '../components/ui/AnimeCard';
-import RefreshButton from '../components/ui/RefreshButton';
+
 import { FilmIcon, BookOpenIcon, SearchIcon } from '../components/ui/Icons';
 import { GenreNetworkGraph } from '../components/ui/GenreNetworkGraph';
 import { useAuth } from '../hooks/useAuth';
@@ -83,7 +83,7 @@ function UnifiedList() {
     // State for list type (Anime vs Manga)
     const [listType, setListType] = useState<'anime' | 'manga'>('anime');
 
-    const [viewMode, setViewMode] = useState<'grid' | 'list' | 'graph'>('grid');
+    const [viewMode] = useState<'grid' | 'list' | 'graph'>('grid');
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedStatus, setSelectedStatus] = useState<ListStatus>('All');
 
@@ -104,14 +104,14 @@ function UnifiedList() {
 
 
     // Queries
-    const { data: animeData, loading: animeLoading, refetch: refetchAnime } = useQuery(USER_ANIME_COLLECTION_QUERY, {
+    const { data: animeData, loading: animeLoading } = useQuery(USER_ANIME_COLLECTION_QUERY, {
         variables: { userId: user?.id },
         skip: !user?.id || listType !== 'anime',
         fetchPolicy: 'cache-and-network',
         nextFetchPolicy: 'cache-first',
     });
 
-    const { data: mangaData, loading: mangaLoading, refetch: refetchManga } = useQuery(USER_MANGA_COLLECTION_QUERY, {
+    const { data: mangaData, loading: mangaLoading } = useQuery(USER_MANGA_COLLECTION_QUERY, {
         variables: { userId: user?.id },
         skip: !user?.id || listType !== 'manga',
         fetchPolicy: 'cache-and-network',
@@ -121,7 +121,6 @@ function UnifiedList() {
     // Determine current data
     const currentData = listType === 'anime' ? animeData : mangaData;
     const currentLoading = listType === 'anime' ? animeLoading : mangaLoading;
-    const currentRefetch = listType === 'anime' ? refetchAnime : refetchManga;
 
 
     const fullList = useMemo(() => {

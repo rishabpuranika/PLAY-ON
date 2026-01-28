@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { useAuth } from '../hooks/useAuth';
 import { fetchNotifications, AniListNotification } from '../api/anilistClient';
 import { sendDesktopNotification } from '../services/notification';
+import { getLocalNotifications, markLocalNotificationsAsRead } from '../services/NotificationService';
 
 const POLLING_INTERVAL = 10 * 60 * 1000; // 10 minutes
 const LAST_SEEN_KEY = 'anilist_last_notification_id';
@@ -31,7 +32,7 @@ function getNotificationTitle(notification: AniListNotification): string {
         case 'ACTIVITY_REPLY': return `${userName} replied to your activity`;
         case 'THREAD_COMMENT_MENTION': return `${userName} mentioned you in a comment`;
         case 'RELATED_MEDIA_ADDITION': return `New related media: ${mediaTitle}`;
-        case 'MEDIA_DATA_CHANGE': return `${mediaTitle} was updated`;
+        case 'MEDIA_DATA_CHANGE': return `${mediaTitle}`;
         default: return 'New AniList Notification';
     }
 }
@@ -64,6 +65,12 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     }, []);
 
     const fetchAndNotify = useCallback(async () => {
+        // Authenticated check is removed here to allow local notifications even if not logged in?
+        // But the context depends on AniList mainly.
+        // Let's keep it restricted to authenticated for now, or allow unauthenticated if we want offline-only mode later.
+        // User asked for "notifications option", which implies the existing Notifications page.
+        // The existing page requires authentication (see Notifications.tsx: if (!isAuthenticated) return ...).
+        // So we keep the check.
         if (!isAuthenticated) return;
 
         setLoading(true);
@@ -71,8 +78,17 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
         try {
             const response = await fetchNotifications(1, 20);
-            setNotifications(response.notifications);
-            setUnreadCount(response.unreadCount);
+            const localNotifs = getLocalNotifications();
+
+            // Merge and sort
+            // Note: Local notifications might share IDs with real ones (unlikely with Date.now())
+            // but we didn't check for collisions.
+            const allNotifs = [...localNotifs, ...response.notifications].sort((a, b) => b.createdAt - a.createdAt);
+
+            setNotifications(allNotifs);
+
+            const localUnread = localNotifs.filter(n => !n.isRead).length;
+            setUnreadCount(response.unreadCount + localUnread);
 
             // Desktop notifications logic
             if (!isInitialFetchRef.current && response.notifications.length > 0) {
@@ -135,6 +151,11 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
             // Optimistically update UI
             setUnreadCount(0);
             await import('../api/anilistClient').then(m => m.markNotificationsAsRead());
+            markLocalNotificationsAsRead();
+
+            // Refetch to ensure local state is consistent (local notifications marked as read)
+            // Or just update local state if we want to avoid refetch
+            // fetchAndNotify(); 
         } catch (error) {
             console.error('[NotificationProvider] Failed to mark as read:', error);
             // Revert on failure? (Optional, skipping for now to keep UI snappy)

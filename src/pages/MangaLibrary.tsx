@@ -3,10 +3,11 @@ import { useQuery } from '@apollo/client';
 import { motion } from 'motion/react';
 import { USER_MANGA_COLLECTION_QUERY } from '../api/anilistClient';
 import { useAuth } from '../hooks/useAuth';
-import { SearchIcon } from '../components/ui/Icons';
+import { SearchIcon, RotateCwIcon } from '../components/ui/Icons';
 import { useNavigate } from 'react-router-dom';
 import { useLibrarySettings } from '../context/LibrarySettingsContext';
 import LibraryFilterSheet from '../components/library/LibraryFilterSheet';
+import { checkForMangaUpdates } from '../services/NotificationService';
 
 interface LibraryEntry {
     id: number;
@@ -48,6 +49,7 @@ export default function MangaLibrary() {
     const [searchQuery, setSearchQuery] = useState('');
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
+    const [isUpdating, setIsUpdating] = useState(false);
 
     const { data, loading, error, refetch } = useQuery(USER_MANGA_COLLECTION_QUERY, {
         variables: { userId: user?.id },
@@ -197,6 +199,23 @@ export default function MangaLibrary() {
                         </div>
                         <div className="flex items-center gap-4">
                             <button
+                                onClick={async () => {
+                                    if (isUpdating) return;
+                                    setIsUpdating(true);
+                                    try {
+                                        await checkForMangaUpdates();
+                                    } finally {
+                                        setIsUpdating(false);
+                                    }
+                                }}
+                                disabled={isUpdating}
+                                className={`text-white/70 hover:text-white transition-colors ${isUpdating ? 'animate-spin' : ''}`}
+                                title="Check for updates"
+                            >
+                                <RotateCwIcon size={22} />
+                            </button>
+
+                            <button
                                 onClick={() => setIsSearchOpen(true)}
                                 className="text-white/70 hover:text-white transition-colors"
                             >
@@ -214,9 +233,7 @@ export default function MangaLibrary() {
                                 <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
                             </button>
 
-                            <button className="text-white/70 hover:text-white transition-colors">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg>
-                            </button>
+
                         </div>
                     </>
                 )}

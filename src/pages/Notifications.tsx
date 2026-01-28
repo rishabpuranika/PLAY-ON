@@ -251,7 +251,7 @@ function Notifications() {
                                             <div
                                                 className={`w-[50px] h-[50px] rounded-xl overflow-hidden bg-white/5 flex items-center justify-center border border-white/10 shadow-inner relative transition-colors ${notification.user ? 'cursor-pointer hover:border-white/40 z-10' : ''} ${hasRoute ? 'group-hover:border-white/20' : ''}`}
                                                 onClick={(e) => {
-                                                    if (notification.user?.name) {
+                                                    if (notification.user?.name && notification.user.name !== 'System') {
                                                         e.stopPropagation();
                                                         navigate(`/user/${notification.user.name}`);
                                                     }
@@ -282,6 +282,7 @@ function Notifications() {
                                                         <span
                                                             className="hover:underline cursor-pointer relative z-10"
                                                             onClick={(e) => {
+                                                                if (notification.user?.name === 'System') return; // Don't navigate for system/local notifications
                                                                 e.stopPropagation();
                                                                 navigate(`/user/${notification.user?.name}`);
                                                             }}
