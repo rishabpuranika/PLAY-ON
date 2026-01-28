@@ -4,11 +4,11 @@ import Onboarding from './pages/Onboarding';
 import Home from './pages/Home';
 import UnifiedList from './pages/UnifiedList';
 import AnimeList from './pages/AnimeList';
-import AnimeBrowse from './pages/AnimeBrowse';
+import AnimeHub from './pages/AnimeHub';
 import MangaList from './pages/MangaList';
 import LocalAnimeList from './pages/LocalAnimeList';
 import LocalMangaList from './pages/LocalMangaList';
-import MangaBrowse from './pages/MangaBrowse';
+import MangaHub from './pages/MangaHub';
 import MangaSourceDetails from './pages/MangaSourceDetails';
 import MangaReader from './pages/MangaReader';
 import LocalFileReader from './pages/LocalFileReader';
@@ -41,6 +41,7 @@ import Calendar from './pages/Calendar';
 import { CursorSpotlight } from './components/ui/CursorSpotlight';
 import { DynamicThemeProvider } from './context/DynamicThemeContext';
 import { NotificationProvider } from './context/NotificationContext';
+import { LibrarySettingsProvider } from './context/LibrarySettingsContext';
 import "./App.css";
 
 /**
@@ -259,76 +260,78 @@ function App() {
           <ToastProvider>
             <ThemeProvider>
               <SettingsProvider>
-                <AuthProvider>
-                  <NotificationProvider>
-                    <LocalMediaProvider>
-                      <NowPlayingProvider>
-                        <SearchBarProvider>
-                          <DynamicThemeProvider>
-                            <CursorSpotlight />
+                <LibrarySettingsProvider>
+                  <AuthProvider>
+                    <NotificationProvider>
+                      <LocalMediaProvider>
+                        <NowPlayingProvider>
+                          <SearchBarProvider>
+                            <DynamicThemeProvider>
+                              <CursorSpotlight />
 
-                            <BrowserRouter>
-                              <Routes>
-                                {/* Root route - checks if onboarding needed */}
-                                <Route path="/" element={<ProtectedRoute />} />
+                              <BrowserRouter>
+                                <Routes>
+                                  {/* Root route - checks if onboarding needed */}
+                                  <Route path="/" element={<ProtectedRoute />} />
 
-                                {/* Full-screen Manga Reader (outside MainLayout) */}
-                                <Route path="/read/:sourceId/:chapterId" element={<MangaReader />} />
+                                  {/* Full-screen Manga Reader (outside MainLayout) */}
+                                  <Route path="/read/:sourceId/:chapterId" element={<MangaReader />} />
 
-                                {/* Full-screen Local File Reader (outside MainLayout) */}
-                                <Route path="/read-local" element={<LocalFileReader />} />
+                                  {/* Full-screen Local File Reader (outside MainLayout) */}
+                                  <Route path="/read-local" element={<LocalFileReader />} />
 
 
 
-                                {/* Main App Layout */}
-                                <Route element={<MainLayout />}>
-                                  <Route path="/home" element={<Home />} />
-                                  <Route path="/my-list" element={<UnifiedList />} />
-                                  <Route path="/calendar" element={<Calendar />} />
-                                  <Route path="/anime-list" element={<AnimeList />} />
-                                  <Route path="/anime-browse" element={<AnimeBrowse />} />
-                                  <Route path="/manga-list" element={<MangaList />} />
-                                  <Route path="/local-anime" element={<LocalAnimeList />} />
-                                  <Route path="/local-manga" element={<LocalMangaList />} />
-                                  <Route path="/history" element={<History />} />
-                                  <Route path="/notifications" element={<Notifications />} />
-                                  <Route path="/community" element={<Community />} />
-                                  <Route path="/statistics" element={<Statistics />} />
+                                  {/* Main App Layout */}
+                                  <Route element={<MainLayout />}>
+                                    <Route path="/home" element={<Home />} />
+                                    <Route path="/my-list" element={<UnifiedList />} />
+                                    <Route path="/calendar" element={<Calendar />} />
+                                    <Route path="/anime-list" element={<AnimeList />} />
+                                    <Route path="/anime-browse" element={<AnimeHub />} />
+                                    <Route path="/manga-list" element={<MangaList />} />
+                                    <Route path="/local-anime" element={<LocalAnimeList />} />
+                                    <Route path="/local-manga" element={<LocalMangaList />} />
+                                    <Route path="/history" element={<History />} />
+                                    <Route path="/notifications" element={<Notifications />} />
+                                    <Route path="/community" element={<Community />} />
+                                    <Route path="/statistics" element={<Statistics />} />
 
-                                  {/* Dynamic route for anime details */}
-                                  <Route path="/anime/:id" element={<AnimeDetails />} />
-                                  {/* Dynamic route for manga details */}
-                                  <Route path="/manga-details/:id" element={<MangaDetails />} />
-                                  <Route path="/counter-demo" element={<CounterDemo />} />
+                                    {/* Dynamic route for anime details */}
+                                    <Route path="/anime/:id" element={<AnimeDetails />} />
+                                    {/* Dynamic route for manga details */}
+                                    <Route path="/manga-details/:id" element={<MangaDetails />} />
+                                    <Route path="/counter-demo" element={<CounterDemo />} />
 
-                                  {/* Settings Route */}
-                                  <Route path="/settings" element={<Settings />} />
-                                  <Route path="/user/:username" element={<UserProfile />} />
+                                    {/* Settings Route */}
+                                    <Route path="/settings" element={<Settings />} />
+                                    <Route path="/user/:username" element={<UserProfile />} />
 
-                                  {/* Local Folder Route */}
-                                  <Route path="/local/:folderPath" element={<LocalFolder />} />
+                                    {/* Local Folder Route */}
+                                    <Route path="/local/:folderPath" element={<LocalFolder />} />
 
-                                  {/* Anime Source Routes */}
-                                  <Route path="/anime-source/:sourceId/:animeId" element={<AnimeSourceDetails />} />
+                                    {/* Anime Source Routes */}
+                                    <Route path="/anime-source/:sourceId/:animeId" element={<AnimeSourceDetails />} />
 
-                                  {/* Manga Source Routes */}
-                                  <Route path="/manga-browse" element={<MangaBrowse />} />
-                                  <Route path="/manga/:sourceId/:mangaId" element={<MangaSourceDetails />} />
-                                </Route>
+                                    {/* Manga Source Routes */}
+                                    <Route path="/manga-browse" element={<MangaHub />} />
+                                    <Route path="/manga/:sourceId/:mangaId" element={<MangaSourceDetails />} />
+                                  </Route>
 
-                                {/* Full-screen Anime Watch (outside MainLayout) */}
-                                <Route path="/watch/:sourceId/:episodeId" element={<AnimeWatch />} />
+                                  {/* Full-screen Anime Watch (outside MainLayout) */}
+                                  <Route path="/watch/:sourceId/:episodeId" element={<AnimeWatch />} />
 
-                                {/* Full-screen Web Browser for Anime (outside MainLayout) */}
-                                <Route path="/browser" element={<WebBrowser />} />
-                              </Routes>
-                            </BrowserRouter>
-                          </DynamicThemeProvider>
-                        </SearchBarProvider>
-                      </NowPlayingProvider>
-                    </LocalMediaProvider>
-                  </NotificationProvider>
-                </AuthProvider>
+                                  {/* Full-screen Web Browser for Anime (outside MainLayout) */}
+                                  <Route path="/browser" element={<WebBrowser />} />
+                                </Routes>
+                              </BrowserRouter>
+                            </DynamicThemeProvider>
+                          </SearchBarProvider>
+                        </NowPlayingProvider>
+                      </LocalMediaProvider>
+                    </NotificationProvider>
+                  </AuthProvider>
+                </LibrarySettingsProvider>
               </SettingsProvider>
             </ThemeProvider>
             <ToastContainer />

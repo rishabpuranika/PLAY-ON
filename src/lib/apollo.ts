@@ -71,7 +71,7 @@ export const apolloClient = new ApolloClient({
     cache: cache,
     defaultOptions: {
         watchQuery: {
-            fetchPolicy: 'cache-and-network', // Return cache first, then update from network
+            fetchPolicy: 'cache-first', // Use cache if available, avoids 429 errors on frequent mounts
         },
         query: {
             //   fetchPolicy: 'cache-first', // Default

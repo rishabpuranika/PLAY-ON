@@ -121,6 +121,8 @@ query ($userId: Int) {
         status
         score
         progress
+        updatedAt
+        createdAt
         media {
           id
           title {
@@ -133,9 +135,15 @@ query ($userId: Int) {
             medium
           }
           episodes
+          chapters
           status
           genres
           averageScore
+          startDate {
+            year
+            month
+            day
+          }
           nextAiringEpisode {
             episode
             timeUntilAiring
@@ -359,6 +367,8 @@ query ($userId: Int) {
         score
         progress
         progressVolumes
+        updatedAt
+        createdAt
         media {
           id
           title {
@@ -375,6 +385,11 @@ query ($userId: Int) {
           status
           genres
           averageScore
+          startDate {
+            year
+            month
+            day
+          }
         }
       }
     }

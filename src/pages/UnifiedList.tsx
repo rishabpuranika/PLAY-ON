@@ -85,7 +85,6 @@ function UnifiedList() {
 
     const [viewMode, setViewMode] = useState<'grid' | 'list' | 'graph'>('grid');
     const [searchQuery, setSearchQuery] = useState('');
-    const [isSearchFocused, setIsSearchFocused] = useState(false);
     const [selectedStatus, setSelectedStatus] = useState<ListStatus>('All');
 
     // Initial load from URL
@@ -202,142 +201,58 @@ function UnifiedList() {
 
     return (
         <div className="max-w-[1600px] mx-auto pb-10 px-2 sm:px-6 min-h-screen">
-            {/* Header / Stats Bar */}
-            <div className="mx-auto w-full max-w-[950px] relative flex flex-col sm:block items-center justify-center -mt-2 mb-4 sm:-mt-4 sm:mb-4 gap-2">
-
-                {/* Search Island */}
-                <div
-                    className="relative sm:absolute left-0 sm:left-4 pointer-events-auto group backdrop-blur-md rounded-full shadow-lg h-[42px] sm:h-[46px] flex items-center gap-2 pl-3 pr-4 transition-all duration-300 ease-out hover:bg-white/[0.07] focus-within:bg-white/10"
-                    style={{
-                        backgroundColor: 'var(--color-bg-glass)',
-                        border: '1px solid rgba(255,255,255,0.05)',
-                        borderRadius: '100px'
-                    }}
-                >
-                    <div className="text-white/40 flex items-center justify-center">
-                        <SearchIcon size={18} />
+            {/* New Control Center Design */}
+            <div className="mx-auto w-full max-w-[950px] mb-8">
+                {/* Header Section */}
+                <div className="space-y-5 mt-1">
+                    {/* Glassmorphic Search Bar */}
+                    <div className="relative w-full group">
+                        <label className="flex flex-col w-full">
+                            <div
+                                className="flex w-full h-12 items-center rounded-full bg-[#1a1022]/60 backdrop-blur-xl px-4 gap-3 transition-all duration-300"
+                            >
+                                <SearchIcon size={20} className="text-white/50" />
+                                <input
+                                    className="flex w-full min-w-0 flex-1 bg-transparent border-none focus:ring-0 text-white placeholder:text-white/40 p-0 text-base font-medium outline-none"
+                                    placeholder={`Search your ${listType} library...`}
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                />
+                            </div>
+                        </label>
                     </div>
 
-                    <div className="h-4 w-px bg-white/10 mx-1" />
+                    <div className="relative">
+                        <div className="flex gap-3 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] mask-linear-fade">
+                            {/* Active State: Defined by selectedStatus */}
+                            {(['All', 'Current', 'Completed', 'Paused', 'Dropped', 'Planning'] as ListStatus[]).map((status) => {
+                                let displayLabel: string = status;
+                                if (status === 'Current') displayLabel = listType === 'anime' ? 'Watching' : 'Reading';
+                                const isActive = selectedStatus === status;
 
-                    <input
-                        type="text"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        onFocus={() => setIsSearchFocused(true)}
-                        onBlur={() => setIsSearchFocused(false)}
-                        placeholder={`Search ${listType}...`}
-                        className="bg-transparent border-none outline-none text-sm font-medium w-full sm:w-48 text-white placeholder-white/30"
-                        style={{
-                            fontFamily: 'var(--font-rounded)',
-                            color: 'var(--theme-text-main)',
-                        }}
-                    />
-                </div>
-
-                {/* Filters Island */}
-                <div
-                    className="relative sm:absolute right-0 sm:right-4 top-0 pointer-events-auto flex scrollbar-hide overflow-x-auto w-full sm:w-auto items-center justify-start sm:justify-between gap-2 sm:gap-4 py-2 px-3 backdrop-blur-2xl rounded-xl sm:rounded-full shadow-2xl transition-all duration-300"
-                    style={{
-                        backgroundColor: 'var(--theme-bg-glass)',
-                        border: '1px solid var(--theme-border-subtle)'
-                    }}
-                >
-                    {/* Status Buttons */}
-                    <div className="flex flex-nowrap items-center gap-1 min-w-max">
-                        {(['All', 'Current', 'Completed', 'Paused', 'Dropped', 'Planning'] as ListStatus[]).map((status) => {
-                            // Only compact filters if search has text or is focused (prevent glitching on simple hover)
-                            const isCompact = searchQuery || isSearchFocused;
-                            // Map 'Current' to 'Watching' or 'Reading' for display
-                            let displayLabel: string = status;
-                            if (status === 'Current') displayLabel = listType === 'anime' ? 'Watching' : 'Reading';
-
-                            const getStatusIcon = (s: ListStatus) => {
-                                switch (s) {
-                                    case 'All': return <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>;
-                                    case 'Current': return <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>;
-                                    case 'Completed': return <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>;
-                                    case 'Paused': return <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>;
-                                    case 'Dropped': return <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>;
-                                    case 'Planning': return <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>;
-                                    default: return null;
-                                }
-                            }
-
-                            return (
-                                <button
-                                    key={status}
-                                    onClick={() => setSelectedStatus(status)}
-                                    className={`flex items-center gap-2 rounded-full text-sm font-bold transition-all duration-200 ${isCompact ? 'p-2' : 'px-4 py-2'}`}
-                                    style={{
-                                        fontFamily: 'var(--font-rounded)',
-                                        backgroundColor: selectedStatus === status
-                                            ? 'var(--theme-accent-primary)'
-                                            : 'transparent',
-                                        color: selectedStatus === status
-                                            ? 'var(--theme-btn-primary-text)'
-                                            : 'var(--theme-text-muted)',
-                                        border: selectedStatus === status
-                                            ? 'none'
-                                            : '1px solid transparent',
-                                        boxShadow: selectedStatus === status ? '0 4px 14px rgba(0,0,0,0.2)' : undefined
-                                    }}
-                                    title={isCompact ? displayLabel : ''}
-                                >
-                                    {isCompact ? (
-                                        <span>{getStatusIcon(status)}</span>
-                                    ) : (
-                                        <span>{displayLabel}</span>
-                                    )}
-                                </button>
-                            );
-                        })}
-                    </div>
-
-                    <div className="flex items-center pl-2 border-l border-white/10 gap-2">
-                        <RefreshButton
-                            onClick={() => currentRefetch && currentRefetch()}
-                            loading={currentLoading}
-                            title="Refresh"
-                            iconSize={16}
-                        />
-
-                        <button
-                            onClick={() => setViewMode('grid')}
-                            className="p-2 rounded-full transition-all"
-                            style={{
-                                backgroundColor: viewMode === 'grid' ? 'var(--theme-active-bg)' : 'transparent',
-                                color: viewMode === 'grid' ? 'var(--theme-text-main)' : 'var(--theme-text-muted)'
-                            }}
-                            title="Grid View"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-                        </button>
-                        <button
-                            onClick={() => setViewMode('list')}
-                            className="p-2 rounded-full transition-all"
-                            style={{
-                                backgroundColor: viewMode === 'list' ? 'var(--theme-active-bg)' : 'transparent',
-                                color: viewMode === 'list' ? 'var(--theme-text-main)' : 'var(--theme-text-muted)'
-                            }}
-                            title="List View"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
-                        </button>
-                        <button
-                            onClick={() => setViewMode('graph')}
-                            className="p-2 rounded-full transition-all"
-                            style={{
-                                backgroundColor: viewMode === 'graph' ? 'var(--theme-active-bg)' : 'transparent',
-                                color: viewMode === 'graph' ? 'var(--theme-text-main)' : 'var(--theme-text-muted)'
-                            }}
-                            title="Graph View"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
-                        </button>
+                                return (
+                                    <button
+                                        key={status}
+                                        onClick={() => setSelectedStatus(status)}
+                                        className={`flex h-10 shrink-0 items-center justify-center px-6 rounded-full text-sm font-semibold transition-all duration-300 ${isActive
+                                            ? 'bg-[#9213ec] text-white shadow-[0_0_15px_rgba(146,19,236,0.5)]'
+                                            : 'bg-[#1a1022]/60 backdrop-blur-md text-white/70 hover:text-white border border-white/5 hover:bg-white/10'
+                                            }`}
+                                    >
+                                        {displayLabel}
+                                    </button>
+                                );
+                            })}
+                        </div>
                     </div>
                 </div>
 
+                {/* Integration of View Mode Toggles into the new design? 
+                    The user design didn't explicitly show them, but we might want them. 
+                    For now, I'll place them discreetly to the right or omit if following strict "replace" instructions.
+                    I'll add them as a small row below or integrated. 
+                    Let's keep them separate for now as the user didn't ask for them in the "above" HTML.
+                */}
             </div>
 
             {/* Type Toggle - Sliding Pill */}

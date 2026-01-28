@@ -113,8 +113,9 @@ export default function AnimeBrowse() {
 
     return (
         <div className="anime-browse">
+            {/* Search Section */}
             <div className="anime-browse-header">
-                <h1>Browse Anime</h1>
+                <h1 style={{ fontSize: '1.5rem' }}>Browse Anime</h1>
                 <p className="subtitle">Search and discover anime from available sources</p>
             </div>
 
@@ -164,7 +165,7 @@ export default function AnimeBrowse() {
                                         color: 'var(--theme-text-main)',
                                         outline: 'none',
                                         fontFamily: 'var(--font-rounded)',
-                                        fontSize: '1.1rem' // Larger font
+                                        fontSize: '0.95rem' // Larger font
                                     }}
                                 />
                                 {searchQuery && (
@@ -279,13 +280,18 @@ export default function AnimeBrowse() {
                         ) : (
                             <div className="search-prompt">
                                 <div className="prompt-icon text-white/20 mb-4">
-                                    <SearchIcon size={64} />
+                                    <SearchIcon size={46} />
                                 </div>
-                                <h3 className="mb-2">Search for anime</h3>
-                                <p className="text-white/40 mb-8">Enter a title to search on {selectedSource?.name || 'source'}...</p>
+                                <h3 className="mb-2" style={{ fontSize: '1.25rem' }}>Search for anime</h3>
+                                <p style={{ color: 'rgba(255, 255, 255, 0.4)', marginBottom: '2rem' }}>
+                                    Enter a title to search on {selectedSource?.name || 'source'}...
+                                </p>
 
                                 {recentSearches.length > 0 && (
-                                    <div className="flex flex-col items-center animate-in fade-in slide-in-from-bottom-2 duration-500">
+                                    <div
+                                        className="flex flex-col items-center animate-in fade-in slide-in-from-bottom-2 duration-500"
+                                        style={{ marginTop: '0.25rem' }}
+                                    >
                                         <div className="text-xs font-bold uppercase tracking-wider text-white/30 mb-3">Recent Searches</div>
                                         <div className="flex flex-wrap justify-center gap-2 max-w-lg">
                                             {recentSearches.map(term => (

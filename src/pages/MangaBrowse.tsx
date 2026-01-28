@@ -134,7 +134,7 @@ function MangaBrowse() {
         <div className="manga-browse">
             {/* Header */}
             <div className="browse-header">
-                <h1>Browse Manga</h1>
+                <h1 style={{ fontSize: '1.5rem' }}>Browse Manga</h1>
                 <p className="subtitle">Search and discover manga from available sources</p>
             </div>
 
@@ -158,7 +158,7 @@ function MangaBrowse() {
                                 color: 'var(--theme-text-main)',
                                 outline: 'none',
                                 fontFamily: 'var(--font-rounded)',
-                                fontSize: '1.1rem'
+                                fontSize: '0.95rem'
                             }}
                         />
                         {query && (
@@ -245,13 +245,18 @@ function MangaBrowse() {
                 ) : !query.trim() && !loading ? (
                     <div className="browse-empty">
                         <div className="empty-icon text-white/20 mb-4">
-                            <SearchIcon size={64} />
+                            <SearchIcon size={46} />
                         </div>
-                        <h3 className="mb-2">Search for manga</h3>
-                        <p className="text-white/40 mb-8">Enter a title to search on {currentSource?.name || 'source'}...</p>
+                        <h3 className="mb-2" style={{ fontSize: '1.25rem' }}>Search for manga</h3>
+                        <p style={{ color: 'rgba(255, 255, 255, 0.4)', marginBottom: '2rem' }}>
+                            Enter a title to search on {currentSource?.name || 'source'}...
+                        </p>
 
                         {recentSearches.length > 0 && (
-                            <div className="flex flex-col items-center animate-in fade-in slide-in-from-bottom-2 duration-500">
+                            <div
+                                className="flex flex-col items-center animate-in fade-in slide-in-from-bottom-2 duration-500"
+                                style={{ marginTop: '0.25rem' }}
+                            >
                                 <div className="text-xs font-bold uppercase tracking-wider text-white/30 mb-3">Recent Searches</div>
                                 <div className="flex flex-wrap justify-center gap-2 max-w-lg">
                                     {recentSearches.map(term => (
