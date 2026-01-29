@@ -41,6 +41,7 @@ import AniListSearchDialog from '../components/ui/AniListSearchDialog';
 import ChapterFilterModal, { FilterMode } from '../components/ui/ChapterFilterModal';
 import { DownloadFolderDialog } from '../components/ui/DownloadFolderDialog';
 import { PlayIcon, CheckIcon, PauseIcon, XIcon, ClipboardIcon, RotateCwIcon } from '../components/ui/Icons';
+import RefreshIcon from '../components/ui/refresh-icon';
 import { StatusDropdown } from '../components/ui/StatusDropdown';
 import { updateMediaStatus } from '../api/anilistClient';
 import './MangaSourceDetails.css';
@@ -580,9 +581,7 @@ function MangaSourceDetails() {
                                             }
                                         }}
                                     >
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                            <path d="M21.5 2v6h-6M21.34 5.5A10 10 0 1 1 11.26 2.89"></path>
-                                        </svg>
+                                        <RefreshIcon size={16} />
                                         Sync
                                     </button>
                                 </div>

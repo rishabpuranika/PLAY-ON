@@ -5,7 +5,10 @@
 .anime-source-details {
     min-height: 100vh;
     padding-bottom: 4rem;
-    /* Removed background: var(--color-bg-main) to fix the "black box" issue */
+    width: 100%;
+    max-width: 100vw;
+    overflow-x: hidden;
+    box-sizing: border-box;
 }
 
 .anime-source-details-loading,
