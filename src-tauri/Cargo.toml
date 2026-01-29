@@ -41,4 +41,8 @@ futures = "0.3"
 tauri-plugin-fs = "2.4.4"
 rand = "0.8"
 
-
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+strip = true
