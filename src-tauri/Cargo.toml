@@ -41,14 +41,4 @@ futures = "0.3"
 tauri-plugin-fs = "2.4.4"
 rand = "0.8"
 
-[target.'cfg(any(target_os = "linux", target_os = "macos", windows))'.dependencies]
-tauri-plugin-drpc = "0.1.6"
-tauri-plugin-single-instance = { version = "2", features = ["deep-link"] }
-tauri-plugin-autostart = "2"
 
-[target.'cfg(windows)'.dependencies]
-winapi = { version = "0.3", features = ["winuser", "windef"] }
-
-[target.'cfg(target_os = "macos")'.dependencies]
-core-graphics = "0.24"
-core-foundation = "0.10"

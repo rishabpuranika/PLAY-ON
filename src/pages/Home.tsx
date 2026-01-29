@@ -334,13 +334,7 @@ function Home() {
         }
     }, [navigate]);
 
-    // Discord RPC - Set browsing activity when on Home
-    useEffect(() => {
-        // Dynamic import to avoid SSR issues if any, and keep bundle size manageable
-        import('../services/discordRPC').then(({ setBrowsingActivity }) => {
-            setBrowsingActivity('full', user?.avatar?.medium || null, user?.name ? `Logged in as ${user.name}` : null);
-        });
-    }, [user]);
+
 
 
 

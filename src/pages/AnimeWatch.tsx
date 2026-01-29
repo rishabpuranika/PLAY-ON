@@ -15,7 +15,6 @@ import StreamPlayer from '../components/ui/StreamPlayer';
 import type { StreamingSource } from '../services/streamingService';
 import { getAnimeEntryBySourceId, updateAnimeProgress, markAnimeAsSynced } from '../lib/localAnimeDb';
 import { updateMediaProgress } from '../api/anilistClient';
-import { updateAnimeActivity, setBrowsingActivity } from '../services/discordRPC';
 import { sendDesktopNotification } from '../services/notification';
 import { getSkipTimes, SkipTime } from '../services/skipTimes';
 import { fetchAnimeDetails, searchAnime } from '../api/anilistClient';
@@ -174,24 +173,7 @@ function AnimeWatch() {
                     console.warn('[AnimeWatch] Could not resolve MAL ID for skip times.');
                 }
 
-                // Discord RPC Update
-                if (animeId && sourceId) {
-                    const decodedAnimeId = decodeURIComponent(animeId);
-                    const localEntry = getAnimeEntryBySourceId(sourceId, decodedAnimeId);
 
-                    if (localEntry && localEntry.anilistId) {
-                        updateAnimeActivity({
-                            animeName: animeTitle,
-                            episode: parseInt(episodeNum) || localEntry.episode,
-                            season: localEntry.season,
-                            anilistId: localEntry.anilistId ?? undefined,
-                            coverImage: localEntry.coverImage,
-                            totalEpisodes: localEntry.totalEpisodes
-                        });
-                    } else {
-                        // Fallback logic
-                    }
-                }
 
             } catch (err) {
                 console.error('Failed to fetch episode sources:', err);
@@ -268,12 +250,7 @@ function AnimeWatch() {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [animeId, sourceId]);
 
-    // Reset to browsing when leaving
-    useEffect(() => {
-        return () => {
-            setBrowsingActivity();
-        };
-    }, []);
+
 
     const [hasSynced, setHasSynced] = useState(false);
 

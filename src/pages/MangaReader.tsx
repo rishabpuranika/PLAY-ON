@@ -24,7 +24,6 @@ import { updateMangaProgress, getMangaEntryByAnilistId, getLocalMangaEntry, getL
 import { syncMangaEntryToAniList } from '../lib/syncService';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { invoke } from '@tauri-apps/api/core';
-import { updateMangaActivity, clearDiscordActivity, setMangaReadingState } from '../services/discordRPC';
 import { trackMangaSession } from '../services/StatsService';
 import './MangaReader.css';
 
@@ -111,7 +110,7 @@ function MangaReader() {
     const navigate = useNavigate();
     const { getMapping } = useMangaMappings();
     const malAuth = useMalAuth();
-    const { user } = useAuthContext();
+    const { } = useAuthContext();
 
     // Get manga info from URL params for chapter navigation
     const mangaId = searchParams.get('mangaId');
@@ -312,29 +311,7 @@ function MangaReader() {
         loadChapter();
     }, [sourceId, chapterId, mangaId]);
 
-    // Update Discord RPC
-    useEffect(() => {
-        if (!currentChapter) return;
 
-        // Set manga reading state to prevent anime detection from overriding
-        setMangaReadingState(true);
-
-        updateMangaActivity({
-            mangaTitle: manga?.title || mangaTitle || 'Reading Manga',
-            chapter: currentChapter.number,
-            anilistId: anilistMapping?.anilistId,
-            coverImage: manga?.coverUrl || anilistMapping?.coverImage,
-            totalChapters: anilistMapping?.totalChapters,
-            smallImage: user?.avatar?.medium || null,
-            smallText: user?.name ? `Logged in as ${user.name}` : null
-        });
-
-        // Cleanup on unmount
-        return () => {
-            setMangaReadingState(false);
-            clearDiscordActivity();
-        };
-    }, [currentChapter, manga, mangaTitle, anilistMapping, user]);
 
     // Scroll tracking for vertical mode
     useEffect(() => {

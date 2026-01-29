@@ -136,15 +136,7 @@ function AnimeList() {
     const [isSearchFocused, setIsSearchFocused] = useState(false);
 
 
-    // Discord Rich Presence - Browsing Library
-    useEffect(() => {
-        const updateRPC = async () => {
-            const { setBrowsingActivity } = await import('../services/discordRPC');
-            setBrowsingActivity('full', user?.avatar?.medium || null, user?.name ? `Logged in as ${user.name}` : null);
-        };
 
-        updateRPC();
-    }, [user]);
 
 
 

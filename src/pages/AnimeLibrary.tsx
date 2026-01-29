@@ -263,9 +263,6 @@ export default function AnimeLibrary() {
                 {filteredAndSortedEntries.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-64 text-white/40">
                         <p>No items in this category.</p>
-                        <button onClick={() => navigate('/anime-browse')} className="mt-4 px-4 py-2 bg-white/10 rounded-full text-white text-sm hover:bg-white/20 transition-colors">
-                            Browse Anime
-                        </button>
                     </div>
                 ) : (
                     <div

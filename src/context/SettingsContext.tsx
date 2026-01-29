@@ -16,11 +16,9 @@ export interface Settings {
     // Player
     autoPlay: boolean;
     subtitleLanguage: string;
-
     // Integrations
-    discordRpcEnabled: boolean;
-    discordPrivacyLevel: 'full' | 'minimal' | 'hidden';
     anilistAutoSync: boolean;
+
 
 
 
@@ -68,8 +66,6 @@ const DEFAULT_SETTINGS: Settings = {
     subtitleLanguage: 'English',
 
     // Integrations
-    discordRpcEnabled: true,
-    discordPrivacyLevel: 'full',
     anilistAutoSync: true,
 
     // Storage

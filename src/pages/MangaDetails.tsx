@@ -29,7 +29,6 @@ import { DetailsSkeleton } from '../components/ui/SkeletonLoader';
 import { motion } from 'framer-motion';
 import { PlayIcon, PauseIcon, XIcon, ClipboardIcon, RotateCwIcon } from '../components/ui/Icons';
 import { useAuth } from '../hooks/useAuth';
-import { setBrowsingActivity } from '../services/discordRPC';
 import { useDynamicTheme } from '../context/DynamicThemeContext';
 import { StatsGrid, StatItem } from '../components/ui/StatsGrid';
 
@@ -131,7 +130,7 @@ function MangaDetails() {
     const navigate = useNavigate();
     const { getMappingByAnilistId } = useMangaMappings();
     const malAuth = useMalAuth();
-    const { user, isAuthenticated } = useAuth();
+    const { isAuthenticated } = useAuth();
 
     // Debug Auth
     useEffect(() => {
@@ -190,11 +189,6 @@ function MangaDetails() {
         }
         load();
     }, [id]);
-
-    // Discord RPC - Set browsing activity (Viewing Manga)
-    useEffect(() => {
-        setBrowsingActivity('full', user?.avatar?.medium || null, user?.name ? `Logged in as ${user.name}` : null);
-    }, [user]);
 
 
 

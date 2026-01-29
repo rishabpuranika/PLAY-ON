@@ -35,7 +35,6 @@ import {
 } from '../lib/localMangaDb';
 import { sendNotification } from '@tauri-apps/plugin-notification';
 import { syncMangaFromAniList } from '../lib/syncService';
-import { setBrowsingActivity } from '../services/discordRPC';
 import { useAuth } from '../hooks/useAuth';
 import { queueChapterDownload, onDownloadProgress, isDownloadFolderConfigured } from '../services/downloadService';
 import AniListSearchDialog from '../components/ui/AniListSearchDialog';
@@ -61,7 +60,7 @@ function MangaSourceDetails() {
     const navigate = useNavigate();
     const { getMapping, addMapping, removeMapping } = useMangaMappings();
     const { settings } = useSettings();
-    const { user } = useAuth();
+    const { } = useAuth();
 
     const [manga, setManga] = useState<Manga | null>(null);
     const [chapters, setChapters] = useState<Chapter[]>([]);
@@ -256,12 +255,9 @@ function MangaSourceDetails() {
             }
         };
 
+
         loadData();
-
-        // Set browsing activity including avatar
-        setBrowsingActivity('full', user?.avatar?.medium || null, user?.name ? `Logged in as ${user.name}` : null);
-    }, [source, mangaId, user]);
-
+    }, [source, mangaId]);
     const filteredChapters = useMemo(() => {
         // Get the entry ID for bookmark/download checks
         const entryId = localEntry?.id || (sourceId && mangaId ? `${sourceId}:${mangaId}` : '');
