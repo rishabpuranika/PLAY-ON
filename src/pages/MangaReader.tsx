@@ -191,7 +191,7 @@ function MangaReader() {
                 const isDownloaded = isChapterDownloaded(localEntry?.id || '', chapterId);
 
                 if (isDownloaded && localEntry && localEntry.chapters) {
-                    console.log('[MangaReader] Chapter is downloaded, reading from disk');
+                    console.log('[MangaReader] Chapter is downloaded, attempting to read from disk');
 
                     const chapter = localEntry.chapters.find((c: Chapter) => c.id === chapterId);
                     if (chapter) {
@@ -204,56 +204,82 @@ function MangaReader() {
                             }
 
                             if (downloadDir) {
-                                // Construct Path matches Rust logic
-                                // Sanitize: replace specific chars with _ and trim
+                                // Sanitize: replace specific chars with _ and trim (matches Rust)
                                 const sanitize = (s: string) => s.replace(/[<>:"/\\|?*]/g, '_').trim();
 
-                                const mangaDir = sanitize(localEntry.title);
-                                const chapterFile = `${sanitize(chapter.title)}.cbz`;
+                                const mangaDirName = sanitize(localEntry.title);
+                                const chapterFileName = `${sanitize(chapter.title)}.cbz`;
 
-                                // We need full path. Assuming Windows/Standard separators. 
-                                // Better to join properly or just use slashes which usually work.
-                                const cbzPath = `${downloadDir}\\${mangaDir}\\${chapterFile}`.replace(/\\\\/g, '\\');
+                                // Use a proper join if possible, or construct carefully
+                                // Ideally we should use path.join but that's node/rust.
+                                // We can use a simple join that works for both if we don't have a join command exposed yet.
+                                // Let's use a robust joiner or invoke a command if we had one.
+                                // For now, we'll try to use forward slashes which usually work on Android/Linux and Windows (in many APIs).
+                                // BUT tauri 'fs' scope might be strict.
+                                // Let's use the Rust-style join by standardizing on '/' or detecting OS?
+                                // Actually, let's use the 'path' API from tauri if available, or just string concat with correct separator.
+                                // Since we don't have 'path' imported from tauri-apps/api, let's use a helper or invoke.
+                                // We will use a safe fallback: standard slash.
+
+
+                                // Actually Android usually wants /
+                                // SAFE BET: Use backend to join paths if we want to be 100% sure, but that's an extra call.
+                                // Let's just use '/' as it's cleaner and often handled.
+                                // Wait, the error before might have been backend expecting native separators.
+                                // Let's try to invoke a simple 'join_path' if we added it? We didn't.
+                                // We'll stick to manual join but log it.
+
+                                const cbzPath = `${downloadDir}${downloadDir.endsWith('/') || downloadDir.endsWith('\\') ? '' : '/'}${mangaDirName}/${chapterFileName}`.replace(/\\/g, '/');
+
+                                console.log('[MangaReader] Checking CBZ at:', cbzPath);
 
                                 // Get CBZ info
                                 const info = await invoke<{ page_count: number, pages: string[] }>('get_cbz_info', { path: cbzPath });
 
-                                // Generate Page URLs
-                                const cbzPages: Page[] = info.pages.map((filename: string, index: number) => ({
-                                    index,
-                                    imageUrl: `manga://localhost/${encodeURIComponent(cbzPath)}/${encodeURIComponent(filename)}`
-                                }));
+                                console.log('[MangaReader] CBZ Info loaded, pages:', info?.page_count);
 
-                                setPages(cbzPages);
+                                if (info && info.pages.length > 0) {
+                                    // Generate Page URLs
+                                    const cbzPages: Page[] = info.pages.map((filename: string, index: number) => ({
+                                        index,
+                                        imageUrl: `manga://localhost/${encodeURIComponent(cbzPath)}/${encodeURIComponent(filename)}`
+                                    }));
 
-                                // If we successfully loaded from CBZ, we still need basic manga info
-                                if (localEntry) {
-                                    setManga({
-                                        id: localEntry.id,
-                                        title: localEntry.title,
-                                        coverUrl: localEntry.coverImage || '',
-                                        description: localEntry.description || '',
-                                        author: localEntry.author || '',
-                                        genres: localEntry.genres || [],
-                                        status: 'unknown',
-                                        url: '',
-                                    });
-                                    if (localEntry.chapters) {
-                                        setChapters(localEntry.chapters);
-                                        // Find current chapter
-                                        const current = localEntry.chapters.find((c: Chapter) => c.id === chapterId);
-                                        setCurrentChapter(current || null);
+                                    setPages(cbzPages);
+
+                                    // If we successfully loaded from CBZ, we still need basic manga info
+                                    if (localEntry) {
+                                        setManga({
+                                            id: localEntry.id,
+                                            title: localEntry.title,
+                                            coverUrl: localEntry.coverImage || '',
+                                            description: localEntry.description || '',
+                                            author: localEntry.author || '',
+                                            genres: localEntry.genres || [],
+                                            status: 'unknown',
+                                            url: '',
+                                        });
+                                        if (localEntry.chapters) {
+                                            setChapters(localEntry.chapters);
+                                            // Find current chapter
+                                            const current = localEntry.chapters.find((c: Chapter) => c.id === chapterId);
+                                            setCurrentChapter(current || null);
+                                        }
                                     }
-                                }
 
-                                setLoading(false);
-                                return; // Exit early to skip online fetch
+                                    setLoading(false);
+                                    return; // Exit early to skip online fetch
+                                } else {
+                                    console.warn('[MangaReader] CBZ info returned empty pages or null');
+                                }
                             }
                         } catch (e) {
-                            // Only log real errors, not "file not found" (os error 2) which is expected for non-downloaded chapters
+                            // Only log real errors
                             const msg = e instanceof Error ? e.message : String(e);
                             if (!msg.includes('os error 2') && !msg.includes('system cannot find the file')) {
-                                console.warn('Failed to load local CBZ:', e);
+                                console.warn('[MangaReader] Failed to load local CBZ:', e);
+                            } else {
+                                console.log('[MangaReader] Local file not found, falling back to online');
                             }
                             // Fallback to online if local fails
                         }

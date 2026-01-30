@@ -1,0 +1,36 @@
+{
+    "$schema": "../gen/schemas/desktop-schema.json",
+    "identifier": "main-capability",
+    "description": "Main app permissions",
+    "windows": [
+        "main"
+    ],
+    "permissions": [
+        "dialog:default",
+        "dialog:allow-open",
+        "fs:default",
+        "fs:allow-read-dir",
+        "fs:allow-mkdir",
+        "fs:allow-write-file",
+        "fs:allow-read-file",
+        {
+            "identifier": "fs:scope",
+            "allow": [
+                {
+                    "path": "$HOME/**"
+                },
+                {
+                    "path": "$DOCUMENT/**"
+                },
+                {
+                    "path": "$EXTERNAL/**"
+                },
+                {
+                    "path": "**"
+                }
+            ]
+        },
+        "http:default",
+        "http:allow-fetch"
+    ]
+}

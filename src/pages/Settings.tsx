@@ -1,7 +1,11 @@
 import { useState, useEffect } from 'react';
-import { pickDirectory } from '../lib/fileSystem';
+import { invoke } from '@tauri-apps/api/core';
+
 
 import { useSettings } from '../context/SettingsContext';
+// ... existing imports ...
+
+
 import { useTheme } from '../context/ThemeContext';
 
 import { useLocalMedia } from '../context/LocalMediaContext';
@@ -18,7 +22,8 @@ import {
     FolderIcon,
     WrenchIcon,
     PuzzleIcon,
-    UserIcon
+    UserIcon,
+    DownloadIcon
 } from '../components/ui/Icons';
 import { Dropdown } from '../components/ui/Dropdown';
 import './Settings.css';
@@ -30,7 +35,9 @@ import { ProfileSettings } from '../components/settings/ProfileSettings';
 // Comprehensive settings interface with 6 categories
 // ============================================================================
 
-type TabId = 'general' | 'profile' | 'extensions' | 'manga' | 'storage' | 'advanced';
+import DownloadQueue from './DownloadQueue';
+
+type TabId = 'general' | 'profile' | 'extensions' | 'manga' | 'downloads' | 'storage' | 'advanced';
 
 interface Tab {
     id: TabId;
@@ -43,6 +50,7 @@ const TABS: Tab[] = [
     { id: 'profile', label: 'Profile', icon: <UserIcon size={18} /> },
     { id: 'extensions', label: 'Extensions', icon: <PuzzleIcon size={18} /> },
     { id: 'manga', label: 'Manga', icon: <BookIcon size={18} /> },
+    { id: 'downloads', label: 'Downloads', icon: <DownloadIcon size={18} /> },
     { id: 'storage', label: 'Storage & Library', icon: <FolderIcon size={18} /> },
     { id: 'advanced', label: 'Advanced', icon: <WrenchIcon size={18} /> },
 ];
@@ -256,11 +264,94 @@ function GeneralSettings() {
 
 
 // ============================================================================
+// SECTION: Downloads Settings
+// ============================================================================
+
+function DownloadsSettings() {
+    const { settings, updateSetting } = useSettings();
+
+    return (
+        <div className="settings-section">
+            <h2 className="settings-section-title">Downloads</h2>
+            <p className="settings-section-description">
+                Manage download location and active queue
+            </p>
+
+            <div className="setting-group">
+                <h3 className="setting-group-title">Location</h3>
+                <SettingRow label="Manga Download Path" description="Where to save downloaded chapters">
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%' }}>
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            padding: '12px 16px',
+                            background: 'var(--theme-input-bg)',
+                            borderRadius: '12px',
+                            border: '1px solid var(--theme-border-subtle)',
+                            width: '100%'
+                        }}>
+                            <span style={{
+                                fontSize: '13px',
+                                fontFamily: 'var(--font-mono)',
+                                color: settings.mangaDownloadPath ? 'var(--theme-text-main)' : 'var(--theme-text-muted)',
+                                wordBreak: 'break-all',
+                                lineHeight: '1.4'
+                            }}>
+                                {settings.mangaDownloadPath || 'No download path configured'}
+                            </span>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                            <button
+                                className="setting-button"
+                                style={{ flex: 1, justifyContent: 'center' }}
+                                onClick={async () => {
+                                    try {
+                                        const selected = await invoke<string>('pick_download_directory');
+                                        if (selected) {
+                                            updateSetting('mangaDownloadPath', selected);
+                                        }
+                                    } catch (err) {
+                                        console.error("Failed to open dialog", err);
+                                    }
+                                }}
+                            >
+                                <FolderIcon size={16} style={{ marginRight: '6px' }} />
+                                Browse
+                            </button>
+
+                            {settings.mangaDownloadPath && (
+                                <button
+                                    className="setting-button danger"
+                                    onClick={() => {
+                                        if (confirm('Clear the download path? You will need to configure it again to download manga.')) {
+                                            updateSetting('mangaDownloadPath', '');
+                                        }
+                                    }}
+                                    title="Clear download path"
+                                >
+                                    Clear
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                </SettingRow>
+            </div>
+
+            <div className="setting-group">
+                <h3 className="setting-group-title">Queue</h3>
+                {/* Embed the queue directly here */}
+                <DownloadQueue embedded={true} />
+            </div>
+        </div>
+    );
+}
+
+// ============================================================================
 // SECTION: Manga Settings
 // ============================================================================
 
 function MangaSettings() {
-    const { settings, updateSetting } = useSettings();
     const [, setForceUpdate] = useState(0);
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
     const [newCategoryName, setNewCategoryName] = useState('');
@@ -300,58 +391,6 @@ function MangaSettings() {
             <p className="settings-section-description">
                 Manga preferences and library tools
             </p>
-
-            <div className="setting-group">
-                <h3 className="setting-group-title">Downloads</h3>
-
-                <SettingRow label="Manga Download Path" description="Where to save downloaded chapters">
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', width: '100%', maxWidth: '100%', overflow: 'hidden' }}>
-                        <input
-                            type="text"
-                            value={settings.mangaDownloadPath || ''}
-                            readOnly
-                            placeholder="Not configured"
-                            style={{
-                                flexGrow: 1,
-                                width: '0', // Allow flex shrink
-                                padding: '8px 12px',
-                                borderRadius: '50px',
-                                background: 'rgba(255,255,255,0.05)',
-                                border: 'none',
-                                color: 'var(--color-text-main)',
-                                fontSize: '13px',
-                                fontFamily: 'var(--font-mono)',
-                                textOverflow: 'ellipsis'
-                            }}
-                        />
-                        <button className="setting-button" onClick={async () => {
-                            try {
-                                const selected = await pickDirectory('Select download path');
-                                if (selected) {
-                                    updateSetting('mangaDownloadPath', selected);
-                                }
-                            } catch (err) {
-                                console.error("Failed to open dialog", err);
-                            }
-                        }}>
-                            Browse
-                        </button>
-                        {settings.mangaDownloadPath && (
-                            <button
-                                className="setting-button danger"
-                                onClick={() => {
-                                    if (confirm('Clear the download path? You will need to configure it again to download manga.')) {
-                                        updateSetting('mangaDownloadPath', '');
-                                    }
-                                }}
-                                title="Clear download path"
-                            >
-                                Clear
-                            </button>
-                        )}
-                    </div>
-                </SettingRow>
-            </div>
 
             <div className="setting-group">
                 <h3 className="setting-group-title">Preferences</h3>
@@ -398,72 +437,74 @@ function MangaSettings() {
             </div>
 
             {/* Add Category Dialog */}
-            {isAddDialogOpen && (
-                <div
-                    className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm"
-                    style={{ backgroundColor: 'var(--theme-bg-overlay)', position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)' }}
-                    onClick={() => setIsAddDialogOpen(false)}
-                >
+            {
+                isAddDialogOpen && (
                     <div
-                        className="p-6 rounded-xl w-[320px]"
-                        style={{
-                            backgroundColor: 'var(--theme-bg-card)',
-                            border: '1px solid var(--theme-border-subtle)',
-                            padding: '24px',
-                            borderRadius: '16px',
-                            width: '320px',
-                            boxShadow: '0 10px 40px rgba(0,0,0,0.5)'
-                        }}
-                        onClick={e => e.stopPropagation()}
+                        className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm"
+                        style={{ backgroundColor: 'var(--theme-bg-overlay)', position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)' }}
+                        onClick={() => setIsAddDialogOpen(false)}
                     >
-                        <h3
-                            style={{ color: 'var(--theme-text-main)', fontSize: '18px', fontWeight: 'bold', marginBottom: '8px' }}
-                        >
-                            New Category
-                        </h3>
-                        <p
-                            style={{ color: 'var(--theme-text-muted)', fontSize: '14px', marginBottom: '16px' }}
-                        >
-                            Create a new collection for your manga.
-                        </p>
-
-                        <input
-                            type="text"
-                            value={newCategoryName}
-                            onChange={(e) => setNewCategoryName(e.target.value)}
-                            placeholder="e.g. Action, Plan to Read"
+                        <div
+                            className="p-6 rounded-xl w-[320px]"
                             style={{
-                                width: '100%',
-                                padding: '10px',
-                                borderRadius: '50px',
-                                marginBottom: '16px',
-                                backgroundColor: 'var(--theme-input-bg)',
-                                border: 'none',
-                                color: 'var(--theme-text-main)',
-                                outline: 'none'
+                                backgroundColor: 'var(--theme-bg-card)',
+                                border: '1px solid var(--theme-border-subtle)',
+                                padding: '24px',
+                                borderRadius: '16px',
+                                width: '320px',
+                                boxShadow: '0 10px 40px rgba(0,0,0,0.5)'
                             }}
-                            autoFocus
-                            onKeyDown={(e) => e.key === 'Enter' && handleConfirmAdd()}
-                        />
+                            onClick={e => e.stopPropagation()}
+                        >
+                            <h3
+                                style={{ color: 'var(--theme-text-main)', fontSize: '18px', fontWeight: 'bold', marginBottom: '8px' }}
+                            >
+                                New Category
+                            </h3>
+                            <p
+                                style={{ color: 'var(--theme-text-muted)', fontSize: '14px', marginBottom: '16px' }}
+                            >
+                                Create a new collection for your manga.
+                            </p>
 
-                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                            <button
-                                onClick={() => setIsAddDialogOpen(false)}
-                                className="setting-button"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={handleConfirmAdd}
-                                className="setting-button primary"
-                            >
-                                Create
-                            </button>
+                            <input
+                                type="text"
+                                value={newCategoryName}
+                                onChange={(e) => setNewCategoryName(e.target.value)}
+                                placeholder="e.g. Action, Plan to Read"
+                                style={{
+                                    width: '100%',
+                                    padding: '10px',
+                                    borderRadius: '50px',
+                                    marginBottom: '16px',
+                                    backgroundColor: 'var(--theme-input-bg)',
+                                    border: 'none',
+                                    color: 'var(--theme-text-main)',
+                                    outline: 'none'
+                                }}
+                                autoFocus
+                                onKeyDown={(e) => e.key === 'Enter' && handleConfirmAdd()}
+                            />
+
+                            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                                <button
+                                    onClick={() => setIsAddDialogOpen(false)}
+                                    className="setting-button"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleConfirmAdd}
+                                    className="setting-button primary"
+                                >
+                                    Create
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+        </div >
     );
 }
 
@@ -471,8 +512,12 @@ function MangaSettings() {
 // SECTION: Storage Settings
 // ============================================================================
 
+// ============================================================================
+// SECTION: Storage Settings
+// ============================================================================
+
 function StorageSettings() {
-    const { animeFolders, mangaFolders, addFolder, removeFolder, setupDefaultLibrary } = useLocalMedia();
+    const { animeFolders, mangaFolders, removeFolder, setupDefaultLibrary } = useLocalMedia();
 
     return (
         <div className="settings-section">
@@ -500,9 +545,9 @@ function StorageSettings() {
                 <p className="settings-section-description" style={{ marginBottom: '12px' }}>
                     Folders monitored for anime files
                 </p>
-                <button className="setting-button primary" onClick={() => addFolder('anime')}>
+                {/* <button className="setting-button primary" onClick={() => addFolder('anime')}>
                     + Add Anime Folder
-                </button>
+                </button> */}
                 <div className="folder-list">
                     {animeFolders.map((folder) => (
                         <div key={folder.path} className="folder-item">
@@ -535,9 +580,9 @@ function StorageSettings() {
                 <p className="settings-section-description" style={{ marginBottom: '12px' }}>
                     Folders monitored for manga scans
                 </p>
-                <button className="setting-button primary" onClick={() => addFolder('manga')}>
+                {/* <button className="setting-button primary" onClick={() => addFolder('manga')}>
                     + Add Manga Folder
-                </button>
+                </button> */}
                 <div className="folder-list">
                     {mangaFolders.map((folder) => (
                         <div key={folder.path} className="folder-item">
@@ -751,6 +796,8 @@ export default function Settings() {
                 return <ExtensionsSettings />;
             case 'manga':
                 return <MangaSettings />;
+            case 'downloads':
+                return <DownloadsSettings />;
             case 'storage':
                 return <StorageSettings />;
             case 'advanced':

@@ -13,7 +13,7 @@
  * ====================================================================
  */
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ExtensionManager, Manga, Chapter } from '../services/ExtensionManager';
 import { useMangaMappings } from '../hooks/useMangaMappings';
@@ -36,11 +36,11 @@ import {
 import { sendNotification } from '@tauri-apps/plugin-notification';
 import { syncMangaFromAniList } from '../lib/syncService';
 import { useAuth } from '../hooks/useAuth';
-import { queueChapterDownload, onDownloadProgress, isDownloadFolderConfigured } from '../services/downloadService';
+import { queueChapterDownload, queueMultipleChapters, onDownloadProgress, isDownloadFolderConfigured, deleteDownloadedChapter } from '../services/downloadService';
 import AniListSearchDialog from '../components/ui/AniListSearchDialog';
 import ChapterFilterModal, { FilterMode } from '../components/ui/ChapterFilterModal';
 import { DownloadFolderDialog } from '../components/ui/DownloadFolderDialog';
-import { PlayIcon, CheckIcon, PauseIcon, XIcon, ClipboardIcon, RotateCwIcon } from '../components/ui/Icons';
+import { PlayIcon, CheckIcon, PauseIcon, XIcon, ClipboardIcon, RotateCwIcon, DownloadIcon, TrashIcon } from '../components/ui/Icons';
 import RefreshIcon from '../components/ui/refresh-icon';
 import { StatusDropdown } from '../components/ui/StatusDropdown';
 import { updateMediaStatus } from '../api/anilistClient';
@@ -94,6 +94,11 @@ function MangaSourceDetails() {
     const [showDownloadFolderDialog, setShowDownloadFolderDialog] = useState(false);
     // Pending download action to execute after folder is configured
     const [pendingDownloadAction, setPendingDownloadAction] = useState<(() => void) | null>(null);
+
+    // Multi-selection State
+    const [isSelectionMode, setIsSelectionMode] = useState(false);
+    const [selectedChapterIds, setSelectedChapterIds] = useState<Set<string>>(new Set());
+    const longPressTimer = useRef<number | null>(null);
 
     // Refresh trigger for library status updates
     const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -330,9 +335,131 @@ function MangaSourceDetails() {
     }, [chapters, searchQuery, sortOrder, downloadedFilter, unreadFilter, bookmarkedFilter, localEntry, sourceId, mangaId, refreshTrigger]);
 
     const handleChapterClick = (chapter: Chapter) => {
+        if (isSelectionMode) {
+            const newSet = new Set(selectedChapterIds);
+            if (newSet.has(chapter.id)) {
+                newSet.delete(chapter.id);
+                if (newSet.size === 0) setIsSelectionMode(false);
+            } else {
+                newSet.add(chapter.id);
+            }
+            setSelectedChapterIds(newSet);
+            return;
+        }
+
         navigate(
             `/read/${sourceId}/${chapter.id}?mangaId=${mangaId}&title=${encodeURIComponent(manga?.title || '')}`
         );
+    };
+
+    // Long Press Handlers
+    const handleTouchStart = (chapterId: string) => {
+        longPressTimer.current = setTimeout(() => {
+            if (!isSelectionMode) {
+                setIsSelectionMode(true);
+                setSelectedChapterIds(new Set([chapterId]));
+                // Vibrate if available
+                if (navigator.vibrate) navigator.vibrate(50);
+            }
+        }, 500); // 500ms long press
+    };
+
+    const handleTouchEnd = () => {
+        if (longPressTimer.current) {
+            clearTimeout(longPressTimer.current);
+            longPressTimer.current = null;
+        }
+    };
+
+    const handleDownloadSelected = () => {
+        if (selectedChapterIds.size === 0 || !manga) return;
+
+        if (!isDownloadFolderConfigured()) {
+            setPendingDownloadAction(() => () => handleDownloadSelected());
+            setShowDownloadFolderDialog(true);
+            return;
+        }
+
+        const chaptersToDownload = chapters.filter(ch => selectedChapterIds.has(ch.id));
+        const entryId = localEntry?.id || (sourceId && mangaId ? `${sourceId}:${mangaId}` : '');
+
+        // Filter out already downloaded
+        const newDownloads = chaptersToDownload.filter(ch => !isChapterDownloaded(entryId, ch.id));
+
+        const tasks = newDownloads.map(ch => ({
+            sourceId: sourceId!,
+            mangaId: mangaId!,
+            mangaTitle: manga.title,
+            chapterId: ch.id,
+            chapterNumber: ch.number,
+            entryId: entryId
+        }));
+
+        if (tasks.length > 0) {
+            queueMultipleChapters(tasks);
+            // Optimistic update
+            const newDownloading = { ...downloadingChapters };
+            tasks.forEach(t => newDownloading[t.chapterId] = true);
+            setDownloadingChapters(newDownloading);
+        }
+
+        // Exit selection mode
+        setIsSelectionMode(false);
+        setSelectedChapterIds(new Set());
+    };
+
+    const handleDeleteSelected = async () => {
+        if (selectedChapterIds.size === 0 || !manga) return;
+
+        const confirmDelete = await confirm(`Delete ${selectedChapterIds.size} downloaded chapters?`);
+        if (!confirmDelete) return;
+
+        const entryId = localEntry?.id || (sourceId && mangaId ? `${sourceId}:${mangaId}` : '');
+        const chaptersToDelete = chapters.filter(ch => selectedChapterIds.has(ch.id));
+
+        for (const ch of chaptersToDelete) {
+            await deleteDownloadedChapter(manga.title, ch.number, entryId, ch.id);
+        }
+
+        // Refresh UI
+        setRefreshTrigger(prev => prev + 1);
+        setIsSelectionMode(false);
+        setSelectedChapterIds(new Set());
+    };
+
+    const handleSelectAll = () => {
+        const ids = new Set(filteredChapters.map(c => c.id));
+        setSelectedChapterIds(ids);
+    };
+
+    const handleDownloadAll = () => {
+        if (!manga) return;
+        // Select all filtered chapters that are not downloaded
+        const entryId = localEntry?.id || (sourceId && mangaId ? `${sourceId}:${mangaId}` : '');
+        const notDownloaded = filteredChapters.filter(ch => !isChapterDownloaded(entryId, ch.id));
+
+        if (notDownloaded.length === 0) return;
+
+        if (!isDownloadFolderConfigured()) {
+            setPendingDownloadAction(() => () => handleDownloadAll());
+            setShowDownloadFolderDialog(true);
+            return;
+        }
+
+        const tasks = notDownloaded.map(ch => ({
+            sourceId: sourceId!,
+            mangaId: mangaId!,
+            mangaTitle: manga.title,
+            chapterId: ch.id,
+            chapterNumber: ch.number,
+            entryId: entryId
+        }));
+
+        queueMultipleChapters(tasks);
+
+        const newDownloading = { ...downloadingChapters };
+        tasks.forEach(t => newDownloading[t.chapterId] = true);
+        setDownloadingChapters(newDownloading);
     };
 
     const handleReadFirst = () => {
@@ -390,7 +517,8 @@ function MangaSourceDetails() {
             coverImage: manga.coverUrl,
             sourceId,
             sourceMangaId: mangaId,
-            anilistId: anilistMapping?.anilistId
+            anilistId: anilistMapping?.anilistId,
+            chapters: chapters // Make sure chapters are saved!
         });
 
         // Set categories
@@ -670,34 +798,62 @@ function MangaSourceDetails() {
                                 }}
                             />
                         </div>
-                        {/* Sort Toggle */}
-                        <button
-                            className="control-btn"
-                            onClick={() => setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc')}
-                            title={sortOrder === 'desc' ? 'Sorted: Newest First' : 'Sorted: Oldest First'}
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                {sortOrder === 'desc' ? (
-                                    <><path d="M3 8L7 4L11 8" /><path d="M7 4V20" /><path d="M13 12H21" /><path d="M13 16H19" /><path d="M13 20H17" /><path d="M13 8H21" /></>
-                                ) : (
-                                    <><path d="M3 16L7 20L11 16" /><path d="M7 20V4" /><path d="M13 8H21" /><path d="M13 12H19" /><path d="M13 16H17" /><path d="M13 20H21" /></>
-                                )}
-                            </svg>
-                        </button>
+                        {/* Bulk Actions & Toggles */}
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            {isSelectionMode ? (
+                                <>
+                                    <button className="control-btn" onClick={() => { setIsSelectionMode(false); setSelectedChapterIds(new Set()); }} title="Cancel">
+                                        <XIcon size={18} />
+                                    </button>
+                                    <span style={{ display: 'flex', alignItems: 'center', fontSize: '13px', fontWeight: 600, color: 'white' }}>
+                                        {selectedChapterIds.size}
+                                    </span>
+                                    <button className="control-btn" onClick={handleSelectAll} title="Select All">
+                                        <CheckIcon size={18} />
+                                    </button>
+                                    <button className="control-btn" onClick={handleDownloadSelected} title="Download Selected">
+                                        <DownloadIcon size={18} />
+                                    </button>
+                                    <button className="control-btn danger-btn" onClick={handleDeleteSelected} title="Delete Selected">
+                                        <TrashIcon size={18} />
+                                    </button>
+                                </>
+                            ) : (
+                                <>
+                                    <button className="control-btn" onClick={handleDownloadAll} title="Download All">
+                                        <DownloadIcon size={18} />
+                                    </button>
+                                    {/* Sort Toggle */}
+                                    <button
+                                        className="control-btn"
+                                        onClick={() => setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc')}
+                                        title={sortOrder === 'desc' ? 'Sorted: Newest First' : 'Sorted: Oldest First'}
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                            {sortOrder === 'desc' ? (
+                                                <><path d="M3 8L7 4L11 8" /><path d="M7 4V20" /><path d="M13 12H21" /><path d="M13 16H19" /><path d="M13 20H17" /><path d="M13 8H21" /></>
+                                            ) : (
+                                                <><path d="M3 16L7 20L11 16" /><path d="M7 20V4" /><path d="M13 8H21" /><path d="M13 12H19" /><path d="M13 16H17" /><path d="M13 20H21" /></>
+                                            )}
+                                        </svg>
+                                    </button>
 
-                        {/* Filter Toggle */}
-                        <button
-                            className={`control-btn ${(downloadedFilter !== 'off' || unreadFilter !== 'off' || bookmarkedFilter !== 'off') ? 'active' : ''}`}
-                            onClick={() => {
-                                console.log('Filter button clicked');
-                                setShowFilterModal(true);
-                            }}
-                            title="Filter Chapters"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
-                            </svg>
-                        </button>
+                                    {/* Filter Toggle */}
+                                    <button
+                                        className={`control-btn ${(downloadedFilter !== 'off' || unreadFilter !== 'off' || bookmarkedFilter !== 'off') ? 'active' : ''}`}
+                                        onClick={() => {
+                                            console.log('Filter button clicked');
+                                            setShowFilterModal(true);
+                                        }}
+                                        title="Filter Chapters"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+                                        </svg>
+                                    </button>
+                                </>
+                            )}
+                        </div>
 
 
 
@@ -719,8 +875,29 @@ function MangaSourceDetails() {
                             return (
                                 <div
                                     key={`${chapter.id}-${refreshTrigger}`}
-                                    className={`chapter-item ${isRead ? 'read' : ''} ${isDownloaded ? 'downloaded' : ''}`}
+                                    className={`chapter-item ${isRead ? 'read' : ''} ${isDownloaded ? 'downloaded' : ''} ${selectedChapterIds.has(chapter.id) ? 'selected' : ''}`}
+                                    onTouchStart={() => handleTouchStart(chapter.id)}
+                                    onTouchEnd={handleTouchEnd}
+                                    onMouseDown={() => handleTouchStart(chapter.id)} // Desktop long-press simulation
+                                    onMouseUp={handleTouchEnd}
+                                    onMouseLeave={handleTouchEnd}
+                                    onContextMenu={(e) => {
+                                        e.preventDefault();
+                                        if (!isSelectionMode) {
+                                            setIsSelectionMode(true);
+                                            setSelectedChapterIds(new Set([chapter.id]));
+                                        }
+                                    }}
                                 >
+                                    {isSelectionMode && (
+                                        <div className="selection-checkbox">
+                                            {selectedChapterIds.has(chapter.id) ? (
+                                                <CheckIcon size={16} />
+                                            ) : (
+                                                <div className="checkbox-unchecked" />
+                                            )}
+                                        </div>
+                                    )}
                                     <div className="chapter-main" onClick={() => handleChapterClick(chapter)}>
                                         <span className="chapter-number">
                                             Chapter {chapter.number}

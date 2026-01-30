@@ -293,6 +293,7 @@ export function addMangaToLibrary(
         description?: string;
         genres?: string[];
         author?: string;
+        chapters?: any[];
     }
 ): LocalMangaEntry {
     const db = getLocalMangaDb();
@@ -318,6 +319,7 @@ export function addMangaToLibrary(
         description: data.description ?? existing?.description,
         genres: data.genres ?? existing?.genres,
         author: data.author ?? existing?.author,
+        chapters: data.chapters ?? existing?.chapters, // Added this line
     };
 
     db[id] = entry;
@@ -600,10 +602,11 @@ export function getDownloadedChapters(entryId: string): string[] {
 export function removeChapterDownloaded(entryId: string, chapterId: string): void {
     const db = getLocalMangaDb();
     const entry = db[entryId];
-    if (!entry || !entry.downloadedChapters) return;
-
-    entry.downloadedChapters = entry.downloadedChapters.filter(id => id !== chapterId);
-    saveDb(db);
-    console.log('[LocalMangaDB] Removed download status for chapter:', chapterId);
+    if (entry && entry.downloadedChapters) {
+        entry.downloadedChapters = entry.downloadedChapters.filter(id => id !== chapterId);
+        saveDb(db);
+        console.log('[LocalMangaDB] Removed downloaded status for chapter:', chapterId);
+    }
 }
+
 

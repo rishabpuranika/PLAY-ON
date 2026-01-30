@@ -6,6 +6,7 @@
  */
 
 import { invoke } from '@tauri-apps/api/core';
+import { sendNotification, isPermissionGranted, requestPermission } from '@tauri-apps/plugin-notification';
 import { markChapterDownloaded } from '../lib/localMangaDb';
 import { ExtensionManager, Page } from './ExtensionManager';
 
@@ -71,10 +72,45 @@ export function onDownloadProgress(callback: ProgressCallback): () => void {
 }
 
 /**
+ * Get the current download queue
+ */
+export function getQueue(): DownloadTask[] {
+    return [...downloadState.queue];
+}
+
+/**
  * Notify all listeners of progress
  */
-function notifyProgress(chapterId: string | null, current: number, total: number, status: string): void {
+async function notifyProgress(chapterId: string | null, current: number, total: number, status: string): Promise<void> {
     progressListeners.forEach(cb => cb(chapterId, current, total, status));
+
+    // System Notification Logic
+    // User wants notifications for "each and every chapter"
+    const shouldNotify =
+        status.includes('Starting download') || // Single chapter start
+        status.includes('Download complete') || // Single chapter end
+        status.includes('Starting bulk') ||
+        status.includes('Bulk download complete') ||
+        status.startsWith('Error');
+
+    if (shouldNotify) {
+        try {
+            let permissionGranted = await isPermissionGranted();
+            if (!permissionGranted) {
+                const permission = await requestPermission();
+                permissionGranted = permission === 'granted';
+            }
+
+            if (permissionGranted) {
+                sendNotification({
+                    title: 'Manga Download',
+                    body: status,
+                });
+            }
+        } catch (e) {
+            console.error('Failed to send notification:', e);
+        }
+    }
 }
 
 /**
@@ -113,6 +149,12 @@ export async function downloadChapter(
             } catch (e) {
                 console.error('Failed to parse settings for download path');
             }
+        }
+
+        // Fix for mobile where asset:// paths are sometimes stored
+        if (downloadDir && downloadDir.startsWith('asset://')) {
+            console.warn('[DownloadService] Invalid asset:// path detected, ignoring');
+            downloadDir = '';
         }
 
         if (!downloadDir) {
@@ -292,4 +334,60 @@ export function clearQueue(): void {
  */
 export function getCurrentTask(): DownloadTask | null {
     return downloadState.currentTask;
+}
+
+
+/**
+ * Delete a downloaded chapter
+ */
+export async function deleteDownloadedChapter(
+    mangaTitle: string,
+    chapterNumber: number,
+    entryId: string,
+    chapterId: string
+): Promise<boolean> {
+    try {
+        const settingsJson = localStorage.getItem('app-settings');
+        if (!settingsJson) return false;
+
+        const settings = JSON.parse(settingsJson);
+        const downloadDir = settings.mangaDownloadPath;
+
+        if (!downloadDir) return false;
+
+        // Construct path: downloadDir/Manga Title/Chapter X
+        // We need to match the backend logic for naming
+        // Ideally we should store the path, but for now we follow the convention
+        // Call backend to delete
+        // We assume standard naming "Chapter {number}" inside "Manga Title" or similar.
+        // We send the raw inputs and let backend construct/sanitize.
+
+        try {
+            await invoke('delete_chapter_command', {
+                chapterTitle: `Chapter ${chapterNumber}`,
+                mangaTitle: mangaTitle,
+                downloadDir: downloadDir
+            });
+
+            // If backend succeeds, update DB
+            // (If it was already deleted, we still remove from DB)
+            const { removeChapterDownloaded } = await import('../lib/localMangaDb');
+            removeChapterDownloaded(entryId, chapterId);
+            return true;
+        } catch (backendError) {
+            console.error('Backend delete failed:', backendError);
+            // If backend fails (e.g. file not found), we might still want to clear from DB?
+            // But for now, returning false is safer.
+            // Or if error is "Path not found", we should clear DB.
+            if (String(backendError).includes('Path not found')) {
+                const { removeChapterDownloaded } = await import('../lib/localMangaDb');
+                removeChapterDownloaded(entryId, chapterId);
+                return true;
+            }
+            return false;
+        }
+    } catch (e) {
+        console.error('Failed to delete chapter:', e);
+        return false;
+    }
 }

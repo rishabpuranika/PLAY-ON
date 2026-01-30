@@ -1,0 +1,135 @@
+.download-queue-page {
+    padding: 20px;
+    padding-top: 80px;
+    /* Space for navbar/header if needed */
+    max-width: 800px;
+    margin: 0 auto;
+    color: white;
+    min-height: 100vh;
+}
+
+.download-queue-page.embedded {
+    padding: 0;
+    padding-top: 0;
+    min-height: auto;
+    max-width: 100%;
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 30px;
+}
+
+.header h1 {
+    flex: 1;
+    margin: 0;
+    font-size: 1.5rem;
+    font-family: var(--font-rounded);
+}
+
+.back-button,
+.clear-button {
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    color: white;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.clear-button {
+    width: auto;
+    padding: 0 16px;
+    border-radius: 20px;
+    gap: 8px;
+    background: rgba(255, 50, 50, 0.1);
+    color: #ff6b6b;
+}
+
+.clear-button:hover {
+    background: rgba(255, 50, 50, 0.2);
+}
+
+.clear-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: rgba(255, 255, 255, 0.05);
+    color: rgba(255, 255, 255, 0.3);
+}
+
+.task-card {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 16px;
+    border-radius: 12px;
+    margin-bottom: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.task-card.active {
+    background: linear-gradient(135deg, rgba(88, 101, 242, 0.1), rgba(88, 101, 242, 0.05));
+    border-color: rgba(88, 101, 242, 0.3);
+}
+
+.task-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 12px;
+}
+
+.manga-title {
+    font-weight: 600;
+    font-size: 1.1rem;
+}
+
+.chapter-title {
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 0.9rem;
+}
+
+.progress-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.progress-bar {
+    height: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: var(--color-zen-accent);
+    transition: width 0.3s ease;
+}
+
+.status-text {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.5);
+    text-align: right;
+}
+
+.queue-list h2,
+.current-download h2 {
+    font-size: 1.1rem;
+    margin-bottom: 16px;
+    opacity: 0.8;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 40px;
+    color: rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 16px;
+}

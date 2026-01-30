@@ -38,12 +38,14 @@ import Settings from './pages/Settings';
 
 import UserProfile from './pages/UserProfile';
 import Calendar from './pages/Calendar';
+import DownloadQueue from './pages/DownloadQueue';
 import { CursorSpotlight } from './components/ui/CursorSpotlight';
 import { DynamicThemeProvider } from './context/DynamicThemeContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { LibrarySettingsProvider } from './context/LibrarySettingsContext';
 import "./App.css";
 
+import { StoragePermissionPopup } from './components/StoragePermissionPopup';
 import { useOfflineSync } from './lib/offlineQueue';
 import { useAutoSync } from './hooks/useAutoSync';
 
@@ -135,8 +137,11 @@ function AppContent() {
     // localStorage.removeItem('username'); // Commented out to persist login for now
   }, []);
 
+
+
   return (
     <>
+      <StoragePermissionPopup />
       {/* Splash Screen - shows on startup */}
       {showSplash && (
         <SplashScreen onComplete={() => setShowSplash(false)} minDuration={2000} />
@@ -175,6 +180,8 @@ function AppContent() {
             {/* Dynamic route for manga details */}
             <Route path="/manga-details/:id" element={<MangaDetails />} />
             <Route path="/counter-demo" element={<CounterDemo />} />
+            <Route path="/download-queue" element={<DownloadQueue />} />
+
 
             {/* Settings Route */}
             <Route path="/settings" element={<Settings />} />
