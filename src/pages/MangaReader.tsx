@@ -17,6 +17,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Dropdown } from '../components/ui/Dropdown';
 import { ExtensionManager, Page, Chapter, Manga } from '../services/ExtensionManager';
 import { useMangaMappings } from '../hooks/useMangaMappings';
+import { parseChapterNumber } from '../utils/chapterUtils';
 import { useMalAuth } from '../context/MalAuthContext';
 import { useAuthContext } from '../context/AuthContext';
 import * as malClient from '../api/malClient';
@@ -183,7 +184,7 @@ function MangaReader() {
                 if (localEntry) {
                     if (localEntry.chapters) {
                         // Enforce Descending Sort (Newest First)
-                        setChapters([...localEntry.chapters].sort((a, b) => b.number - a.number));
+                        setChapters([...localEntry.chapters].sort((a, b) => parseChapterNumber(b.number) - parseChapterNumber(a.number)));
                     }
                 }
 
@@ -303,8 +304,8 @@ function MangaReader() {
                         source.getChapters(mangaId),
                     ]);
                     setManga(mangaInfo);
-                    // Enforce Descending Sort (Newest First)
-                    const sortedChapters = [...chapterList].sort((a, b) => b.number - a.number);
+                    // Enforce Descending Sort (Newest First) - use parseChapterNumber for proper numeric comparison
+                    const sortedChapters = [...chapterList].sort((a, b) => parseChapterNumber(b.number) - parseChapterNumber(a.number));
                     setChapters(sortedChapters);
 
                     // Find current chapter in the list
@@ -551,19 +552,29 @@ function MangaReader() {
 
     const goToNextChapter = useCallback(() => {
         if (!currentChapter || chapters.length === 0) return;
-        const currentIndex = chapters.findIndex((c) => c.id === currentChapter.id);
-        // Chapters are sorted desc (newest first), so "next" is actually previous index
-        if (currentIndex > 0) {
-            const nextChapter = chapters[currentIndex - 1];
+
+        // Sort numerically ascending to find logical order
+        const ascending = [...chapters].sort((a, b) => parseChapterNumber(a.number) - parseChapterNumber(b.number));
+        const currentIndex = ascending.findIndex(c => c.id === currentChapter.id);
+
+        // "Next" usually means the *next chapter number* (e.g. Ch 1 -> Ch 2), which is index + 1 in ascending list
+        // Regardless of display order, "Next Chapter" button usually advances the story.
+        if (currentIndex < ascending.length - 1) {
+            const nextChapter = ascending[currentIndex + 1];
             navigate(`/read/${sourceId}/${nextChapter.id}?mangaId=${mangaId}&title=${encodeURIComponent(mangaTitle || '')}`);
         }
     }, [currentChapter, chapters, sourceId, mangaId, mangaTitle, navigate]);
 
     const goToPrevChapter = useCallback(() => {
         if (!currentChapter || chapters.length === 0) return;
-        const currentIndex = chapters.findIndex((c) => c.id === currentChapter.id);
-        if (currentIndex < chapters.length - 1) {
-            const prevChapter = chapters[currentIndex + 1];
+
+        // Sort numerically ascending
+        const ascending = [...chapters].sort((a, b) => parseChapterNumber(a.number) - parseChapterNumber(b.number));
+        const currentIndex = ascending.findIndex(c => c.id === currentChapter.id);
+
+        // "Prev" usually means *previous chapter number* (e.g. Ch 2 -> Ch 1), which is index - 1 in ascending list
+        if (currentIndex > 0) {
+            const prevChapter = ascending[currentIndex - 1];
             navigate(`/read/${sourceId}/${prevChapter.id}?mangaId=${mangaId}&title=${encodeURIComponent(mangaTitle || '')}`);
         }
     }, [currentChapter, chapters, sourceId, mangaId, mangaTitle, navigate]);
@@ -745,8 +756,24 @@ function MangaReader() {
                 <div className="chapter-info">
                     <h1 className="manga-title">{manga?.title || mangaTitle || 'Unknown Manga'}</h1>
                     <span className="chapter-number">
-                        Chapter {currentChapter?.number || '?'}
-                        {currentChapter?.title && currentChapter.title !== `Chapter ${currentChapter.number}` && ` - ${currentChapter.title}`}
+                        {(() => {
+                            // Invert chapter display: Showing header for "Chapter X" uses "Chapter Y" text
+                            let displayChapter = currentChapter;
+                            if (currentChapter && chapters.length > 0) {
+                                const currentIndex = chapters.findIndex(c => c.id === currentChapter.id);
+                                if (currentIndex !== -1) {
+                                    const invertedIndex = chapters.length - 1 - currentIndex;
+                                    displayChapter = chapters[invertedIndex] || currentChapter;
+                                }
+                            }
+
+                            return (
+                                <>
+                                    Chapter {displayChapter?.number || '?'}
+                                    {displayChapter?.title && displayChapter.title !== `Chapter ${displayChapter.number}` && ` - ${displayChapter.title}`}
+                                </>
+                            );
+                        })()}
                     </span>
                 </div>
 

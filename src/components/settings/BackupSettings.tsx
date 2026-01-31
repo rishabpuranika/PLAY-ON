@@ -6,7 +6,6 @@ import {
     Download,
     Upload,
     Clock,
-    FolderOpen,
     Database,
     RotateCcw,
     CheckCircle2,
@@ -233,25 +232,6 @@ const BackupSettings: React.FC = () => {
         }
     };
 
-    const handleSelectBackupLocation = async () => {
-        try {
-            const selected = await open({
-                directory: true,
-                multiple: false,
-                defaultPath: config.backupLocation || undefined,
-            });
-
-            if (selected) {
-                const newConfig = { ...config, backupLocation: selected as string };
-                setConfig(newConfig);
-                await invoke('save_backup_config', { config: newConfig });
-                setMessage({ type: 'success', text: 'Backup location updated' });
-            }
-        } catch (err) {
-            setMessage({ type: 'error', text: `Selection failed: ${err}` });
-        }
-    };
-
     const updateConfig = async (updates: Partial<BackupConfig>) => {
         const newConfig = { ...config, ...updates };
         setConfig(newConfig);
@@ -391,26 +371,6 @@ const BackupSettings: React.FC = () => {
                         </div>
                     </motion.div>
                 )}
-            </div>
-
-            {/* Backup Location */}
-            <div className="bg-gray-800/30 border border-gray-700/50 rounded-xl p-6">
-                <div className="flex items-center gap-3 mb-4">
-                    <FolderOpen className="w-5 h-5 text-emerald-400" />
-                    <h3 className="text-lg font-semibold text-white">Backup Location</h3>
-                </div>
-
-                <div className="flex items-center gap-3">
-                    <div className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 text-gray-400 text-sm truncate">
-                        {config.backupLocation || 'Default location (App Data)'}
-                    </div>
-                    <button
-                        onClick={handleSelectBackupLocation}
-                        className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors text-sm font-medium"
-                    >
-                        Browse
-                    </button>
-                </div>
             </div>
 
             {/* Backup History */}

@@ -1,22 +1,8 @@
-/**
- * ====================================================================
- * MANGA DETAILS PAGE (Source-based)
- * ====================================================================
- *
- * Shows manga details from a source with:
- * - Cover image, title, description
- * - Chapter list with reading progress
- * - AniList linking for tracking
- * - Search/browse chapters
- * - Discord RPC integration (Browsing status)
- * - Chapter sorting, filtering, and bookmarking
- * ====================================================================
- */
-
 import { useState, useEffect, useMemo, useRef, useCallback, memo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ExtensionManager, Manga, Chapter } from '../services/ExtensionManager';
 import { useMangaMappings } from '../hooks/useMangaMappings';
+import { sortChaptersNumerically, parseChapterNumber } from '../utils/chapterUtils';
 import { useSettings } from '../context/SettingsContext';
 import {
     getMangaEntryByAnilistId,
@@ -36,6 +22,7 @@ import {
 import { sendNotification } from '@tauri-apps/plugin-notification';
 import { syncMangaFromAniList } from '../lib/syncService';
 import { useAuth } from '../hooks/useAuth';
+import { useLocalReadStatus } from '../hooks/useLocalReadStatus';
 import { queueChapterDownload, queueMultipleChapters, onDownloadProgress, isDownloadFolderConfigured, deleteDownloadedChapter } from '../services/downloadService';
 import AniListSearchDialog from '../components/ui/AniListSearchDialog';
 import ChapterFilterModal, { FilterMode } from '../components/ui/ChapterFilterModal';
@@ -56,12 +43,226 @@ const STATUS_OPTIONS = [
     { value: 'REPEATING', label: 'Rereading', icon: <RotateCwIcon size={16} /> },
 ];
 
+// ChapterRow component defined BEFORE main component
+interface ChapterRowProps {
+    chapter: Chapter;
+    displayChapter?: Chapter;
+    isSelected: boolean;
+    isSelectionMode: boolean;
+    isRead: boolean;
+    isBookmarked: boolean;
+    isDownloaded: boolean;
+    isDownloading: boolean;
+    onToggle: (id: string) => void;
+    onPlay: (chapter: Chapter) => void;
+    onDownload: (chapter: Chapter) => void;
+    onBookmark: (id: string) => void;
+    onLongPress: (id: string) => void;
+    onTouchEnd: () => void;
+    onSwipeToggle: (chapter: Chapter, isRead: boolean) => void;
+}
+
+const ChapterRow = memo((props: ChapterRowProps) => {
+    const {
+        chapter,
+        displayChapter,
+        isSelected,
+        isSelectionMode,
+        isRead,
+        isBookmarked,
+        isDownloaded,
+        isDownloading,
+        onToggle,
+        onPlay,
+        onDownload,
+        onBookmark,
+        onLongPress,
+        onTouchEnd,
+        onSwipeToggle
+    } = props;
+
+    // Use displayChapter for visuals if provided, otherwise fallback to actual chapter
+    const visualChapter = displayChapter || chapter;
+
+    // Swipe Logic
+    const [dragX, setDragX] = useState(0);
+    const [isDragging, setIsDragging] = useState(false);
+    const startX = useRef(0);
+    const hasSwipeActioned = useRef(false);
+
+    const handleStart = (clientX: number) => {
+        if (isSelectionMode) return; // Disable swipe in selection mode
+        startX.current = clientX;
+        setIsDragging(true);
+        hasSwipeActioned.current = false;
+    };
+
+    const handleMove = (clientX: number) => {
+        if (!isDragging || isSelectionMode) return;
+        const delta = clientX - startX.current;
+        // Only allow right swipe (to read/unread)
+        if (delta > 0) {
+            setDragX(delta);
+        }
+    };
+
+    const handleEnd = () => {
+        if (!isDragging) return;
+        setIsDragging(false);
+
+        // Threshold for swipe action
+        if (dragX > 75) {
+            onSwipeToggle(chapter, !isRead);
+            hasSwipeActioned.current = true;
+        }
+        setDragX(0);
+    };
+
+    return (
+        <div className="relative overflow-hidden rounded-xl mb-1">
+            <div
+                className={`absolute inset-0 flex items-center px-4 transition-colors duration-200 ${dragX > 0 ? (isRead ? 'bg-blue-500/20' : 'bg-green-500/20') : 'bg-transparent'
+                    }`}
+                style={{ opacity: Math.min(dragX / 75, 1) }}
+            >
+                {isRead ? (
+                    <div className="text-blue-400 font-bold text-sm">Mark Unread</div>
+                ) : (
+                    <div className="text-green-400 font-bold text-sm">Mark Read</div>
+                )}
+            </div>
+
+            <div
+                className={`relative group flex items-center justify-between p-3 transition-transform duration-200 cursor-pointer border border-transparent 
+                    ${isSelected ? 'bg-purple-500/10 border-purple-500/30' : 'bg-transparent hover:bg-white/5'}
+                    ${isRead ? 'opacity-60' : 'opacity-100'} 
+                `}
+                style={{ transform: `translateX(${dragX}px)` }}
+                onClick={(e) => {
+                    if (hasSwipeActioned.current) {
+                        e.stopPropagation();
+                        hasSwipeActioned.current = false;
+                        return;
+                    }
+                    if (isSelectionMode) {
+                        onToggle(chapter.id);
+                    } else {
+                        onPlay(chapter);
+                    }
+                }}
+                onTouchStart={(e) => {
+                    handleStart(e.touches[0].clientX);
+                    onLongPress(chapter.id);
+                }}
+                onTouchMove={(e) => handleMove(e.touches[0].clientX)}
+                onTouchEnd={() => {
+                    handleEnd();
+                    onTouchEnd();
+                }}
+                // Mouse Events (for testing/desktop)
+                onMouseDown={(e) => {
+                    if (e.button === 0) {
+                        handleStart(e.clientX);
+                        onLongPress(chapter.id);
+                    }
+                }}
+                onMouseMove={(e) => {
+                    if (e.buttons === 1) handleMove(e.clientX);
+                }}
+                onMouseUp={() => {
+                    handleEnd();
+                    onTouchEnd();
+                }}
+                onMouseLeave={() => {
+                    handleEnd();
+                    onTouchEnd();
+                }}
+                onContextMenu={(e) => {
+                    e.preventDefault();
+                }}
+            >
+                {/* Selection Checkbox */}
+                {isSelectionMode && (
+                    <div className="mr-3 shrink-0">
+                        <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${isSelected ? 'bg-purple-500 border-purple-500' : 'border-white/30 bg-transparent'}`}>
+                            {isSelected && <CheckIcon size={12} />}
+                        </div>
+                    </div>
+                )}
+
+                {/* Chapter Info */}
+                <div className="flex-1 min-w-0 pr-4">
+                    <div className={`font-medium text-sm truncate mb-0.5 ${isRead ? 'text-white/40' : 'text-white'}`}>
+                        Chapter {visualChapter.number}
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-white/40 truncate">
+                        {visualChapter.dateUpload && <span>{visualChapter.dateUpload.toLocaleDateString()}</span>}
+                        {visualChapter.scanlator && (
+                            <>
+                                <span className="w-1 h-1 rounded-full bg-white/20" />
+                                <span className="truncate max-w-[120px]">{visualChapter.scanlator}</span>
+                            </>
+                        )}
+                    </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center gap-1 shrink-0">
+                    {isRead && !isSelected && <span className="text-white/20 mr-1" title="Read"><CheckIcon size={16} /></span>}
+
+                    {!isDownloaded ? (
+                        <button
+                            className={`p-2 rounded-full transition-all active:scale-95 ${isDownloading ? 'text-blue-400' : 'text-white/30 hover:text-white hover:bg-white/10'}`}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onDownload(chapter);
+                            }}
+                            title="Download"
+                        >
+                            {isDownloading ? (
+                                <div className="w-4 h-4 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
+                            ) : (
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                    <polyline points="7 10 12 15 17 10"></polyline>
+                                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                                </svg>
+                            )}
+                        </button>
+                    ) : (
+                        <span className="p-2 text-blue-400" title="Downloaded">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+                            </svg>
+                        </span>
+                    )}
+
+                    {/* Bookmark */}
+                    <button
+                        className={`p-2 rounded-full transition-all active:scale-95 ${isBookmarked ? 'text-purple-400' : 'text-white/30 hover:text-white hover:bg-white/10'}`}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onBookmark(chapter.id);
+                        }}
+                        title="Bookmark"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill={isBookmarked ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+});
+
 function MangaSourceDetails() {
     const { sourceId, mangaId } = useParams<{ sourceId: string; mangaId: string }>();
     const navigate = useNavigate();
     const { getMapping, addMapping, removeMapping } = useMangaMappings();
     const { settings } = useSettings();
     const { } = useAuth();
+    const { toggleLocalReadStatus, isChapterLocallyRead } = useLocalReadStatus();
 
     const [manga, setManga] = useState<Manga | null>(null);
     const [chapters, setChapters] = useState<Chapter[]>([]);
@@ -239,7 +440,8 @@ function MangaSourceDetails() {
                 ]);
 
                 setManga(mangaData);
-                setChapters(chaptersData);
+                // CRITICAL FIX: Ensure chapters are stored in ascending numerical order (1, 2, 3...)
+                setChapters(sortChaptersNumerically(chaptersData, true));
 
                 // 2. Update Cache
                 if (localEntry) {
@@ -271,6 +473,7 @@ function MangaSourceDetails() {
 
         loadData();
     }, [source, mangaId]);
+
     const filteredChapters = useMemo(() => {
         // Get the entry ID for bookmark/download checks
         const entryId = localEntry?.id || (sourceId && mangaId ? `${sourceId}:${mangaId}` : '');
@@ -309,9 +512,10 @@ function MangaSourceDetails() {
         if (unreadFilter !== 'off') {
             if (localEntry) {
                 if (unreadFilter === 'include') { // Show Unread
-                    result = result.filter(ch => ch.number > localEntry.chapter);
+                    // CRITICAL FIX: Use parseChapterNumber for numeric comparison instead of string comparison
+                    result = result.filter(ch => parseChapterNumber(ch.number) > localEntry.chapter);
                 } else { // Exclude Unread aka Show Read
-                    result = result.filter(ch => ch.number <= localEntry.chapter);
+                    result = result.filter(ch => parseChapterNumber(ch.number) <= localEntry.chapter);
                 }
             } else if (unreadFilter === 'exclude') {
                 // If no entry, all are unread. So if we exclude unread, we show nothing.
@@ -333,12 +537,8 @@ function MangaSourceDetails() {
             }
         }
 
-        // Apply sorting
-        result.sort((a, b) => {
-            return sortOrder === 'asc' ? a.number - b.number : b.number - a.number;
-        });
-
-        return result;
+        // Apply sorting (display order based on user preference)
+        return sortChaptersNumerically(result, sortOrder === 'asc');
     }, [chapters, searchQuery, sortOrder, downloadedFilter, unreadFilter, bookmarkedFilter, localEntry, sourceId, mangaId, refreshTrigger]);
 
     const handleToggleSelection = useCallback((chapterId: string) => {
@@ -375,7 +575,9 @@ function MangaSourceDetails() {
                     setDownloadingChapters(prev => ({ ...prev, [chapter.id]: true }));
                     queueChapterDownload({
                         sourceId, mangaId, mangaTitle: manga.title,
-                        chapterId: chapter.id, chapterNumber: chapter.number,
+                        chapterId: chapter.id,
+                        // CRITICAL FIX: Use parseChapterNumber instead of passing raw string
+                        chapterNumber: parseChapterNumber(chapter.number),
                         entryId,
                     });
                 });
@@ -385,7 +587,9 @@ function MangaSourceDetails() {
             setDownloadingChapters(prev => ({ ...prev, [chapter.id]: true }));
             queueChapterDownload({
                 sourceId, mangaId, mangaTitle: manga.title,
-                chapterId: chapter.id, chapterNumber: chapter.number,
+                chapterId: chapter.id,
+                // CRITICAL FIX: Use parseChapterNumber instead of passing raw string
+                chapterNumber: parseChapterNumber(chapter.number),
                 entryId,
             });
         }
@@ -438,7 +642,7 @@ function MangaSourceDetails() {
             mangaId: mangaId!,
             mangaTitle: manga.title,
             chapterId: ch.id,
-            chapterNumber: ch.number,
+            chapterNumber: parseChapterNumber(ch.number),
             entryId: entryId
         }));
 
@@ -498,7 +702,7 @@ function MangaSourceDetails() {
             mangaId: mangaId!,
             mangaTitle: manga.title,
             chapterId: ch.id,
-            chapterNumber: ch.number,
+            chapterNumber: parseChapterNumber(ch.number),
             entryId: entryId
         }));
 
@@ -511,29 +715,29 @@ function MangaSourceDetails() {
 
     const handleReadFirst = () => {
         if (chapters.length > 0) {
-            // Last chapter in list is the first chapter (sorted desc)
-            handleChapterClick(chapters[chapters.length - 1]);
+            // FIXED: Chapters stored ascending (1,2,3...), so first element is Chapter 1
+            handleChapterClick(chapters[0]);
         }
     };
 
     const handleReadLatest = () => {
         if (chapters.length > 0) {
-            handleChapterClick(chapters[0]);
+            // FIXED: Last element is the latest chapter
+            handleChapterClick(chapters[chapters.length - 1]);
         }
     };
 
     const handleContinueReading = () => {
         if (!localEntry || chapters.length === 0) return;
 
-        // Find the next chapter after the last read one
+        // Find the next chapter numerically (not by array index)
         const lastReadChapter = localEntry.chapter;
-        const sortedChapters = [...chapters].sort((a, b) => a.number - b.number);
-        const nextChapter = sortedChapters.find(ch => ch.number > lastReadChapter);
+        // FIXED: Use parseChapterNumber for proper numeric comparison
+        const nextChapter = chapters.find(ch => parseChapterNumber(ch.number) > lastReadChapter);
 
         if (nextChapter) {
             handleChapterClick(nextChapter);
         } else {
-            // If no next chapter, go to the latest
             handleReadLatest();
         }
     };
@@ -891,340 +1095,215 @@ function MangaSourceDetails() {
                     </div>
 
                     {/* Search Bar - Clean & Simple */}
-                    <div className="relative">
-                        <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <circle cx="11" cy="11" r="8"></circle>
-                                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                            </svg>
+
+                    <div className="flex flex-col md:flex-row gap-4 mb-4">
+                        <div className="relative flex-1">
+                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/30">
+                                    <circle cx="11" cy="11" r="8"></circle>
+                                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                                </svg>
+                            </div>
+                            <input
+                                type="text"
+                                placeholder="       Search chapters..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-white placeholder-white/30 focus:outline-none focus:border-white/20 focus:bg-white/10 transition-all text-sm"
+                            />
                         </div>
-                        <input
-                            type="text"
-                            placeholder="Search chapters..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-white placeholder-white/30 focus:outline-none focus:border-white/20 focus:bg-white/10 transition-all text-sm"
-                        />
+
+                        <button
+                            onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+                            className="flex items-center justify-center gap-2 px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm font-medium text-white/70 hover:text-white hover:bg-white/10 transition-all shrink-0"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M3 6h18M6 12h12m-9 6h6" />
+                            </svg>
+                            {sortOrder === 'desc' ? 'Newest First' : 'Oldest First'}
+                        </button>
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                        {filteredChapters.length === 0 ? (
+                            <div className="py-12 text-center text-white/30 italic">No chapters found</div>
+                        ) : (
+                            filteredChapters.map((chapter, index) => {
+                                const entryId = localEntry?.id || (sourceId && mangaId ? `${sourceId}:${mangaId}` : '');
+
+                                // CALCULATE REVERSE DISPLAY CHAPTER
+                                // The requirement is: "The first chapter in the array ... should DISPLAY the text of the last chapter"
+                                // So index 0 gets filteredChapters[length-1], index 1 gets filteredChapters[length-2], etc.
+                                const displayChapter = filteredChapters[filteredChapters.length - 1 - index];
+
+                                // Boolean flags for memoized component
+                                // Check both existing progress AND new local read status
+                                const isRead = (localEntry ? parseChapterNumber(chapter.number) <= localEntry.chapter : false) || (entryId ? isChapterLocallyRead(entryId, chapter.id) : false);
+                                const isBookmarked = entryId ? isChapterBookmarked(entryId, chapter.id) : false;
+                                const isDownloaded = entryId ? isChapterDownloaded(entryId, chapter.id) : false;
+                                const isSelected = selectedChapterIds.has(chapter.id);
+                                const isDownloading = !!downloadingChapters[chapter.id];
+
+                                return (
+                                    <ChapterRow
+                                        key={chapter.id}
+                                        chapter={chapter}
+                                        displayChapter={displayChapter}
+
+                                        isSelected={isSelected}
+                                        isSelectionMode={isSelectionMode}
+                                        isRead={isRead}
+                                        isBookmarked={isBookmarked}
+                                        isDownloaded={isDownloaded}
+                                        isDownloading={isDownloading}
+                                        onToggle={handleToggleSelection}
+                                        onPlay={handleChapterPlay}
+                                        onDownload={handleDownloadChapter}
+                                        onBookmark={handleToggleBookmark}
+                                        onLongPress={handleTouchStart}
+                                        onTouchEnd={handleTouchEnd}
+                                        onSwipeToggle={(c, status) => {
+                                            if (entryId) toggleLocalReadStatus(entryId, c.id, status);
+                                        }}
+                                    />
+                                );
+                            })
+                        )}
                     </div>
                 </div>
 
-                <div className="flex flex-col gap-2">
-                    {filteredChapters.length === 0 ? (
-                        <div className="py-12 text-center text-white/30 italic">No chapters found</div>
-                    ) : (
-                        filteredChapters.map((chapter) => {
-                            const entryId = localEntry?.id || (sourceId && mangaId ? `${sourceId}:${mangaId}` : '');
-                            // Boolean flags for memoized component
-                            const isRead = localEntry ? chapter.number <= localEntry.chapter : false;
-                            const isBookmarked = entryId ? isChapterBookmarked(entryId, chapter.id) : false;
-                            const isDownloaded = entryId ? isChapterDownloaded(entryId, chapter.id) : false;
-                            const isSelected = selectedChapterIds.has(chapter.id);
-                            const isDownloading = !!downloadingChapters[chapter.id];
+                {/* AniList Search Dialog */}
+                <AniListSearchDialog
+                    isOpen={showLinkDialog}
+                    onClose={() => setShowLinkDialog(false)}
+                    onSelect={handleAniListLink}
+                    initialSearchTerm={manga.title}
+                    mediaType="MANGA"
+                />
 
-                            return (
-                                <ChapterRow
-                                    key={chapter.id}
-                                    chapter={chapter}
-                                    isSelected={isSelected}
-                                    isSelectionMode={isSelectionMode}
-                                    isRead={isRead}
-                                    isBookmarked={isBookmarked}
-                                    isDownloaded={isDownloaded}
-                                    isDownloading={isDownloading}
-                                    onToggle={handleToggleSelection}
-                                    onPlay={handleChapterPlay}
-                                    onDownload={handleDownloadChapter}
-                                    onBookmark={handleToggleBookmark}
-                                    onLongPress={handleTouchStart}
-                                    onTouchEnd={handleTouchEnd}
-                                />
-                            );
-                        })
-                    )}
-                </div>
-            </div>
+                {/* Library Category Dialog */}
+                {
+                    showLibraryDialog && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md animate-fade-in" onClick={() => setShowLibraryDialog(false)}>
+                            <div
+                                className="bg-[#15151e] p-6 rounded-2xl border border-white/10 w-full max-w-[380px] shadow-2xl transform transition-all scale-100"
+                                onClick={e => e.stopPropagation()}
+                            >
+                                <div className="text-center mb-6">
+                                    <h3 className="text-xl font-bold text-white mb-1">
+                                        {inLibrary ? 'Update Library Entry' : 'Add to Library'}
+                                    </h3>
+                                    <p className="text-sm text-white/40">Select categories for this manga</p>
+                                </div>
 
-            {/* AniList Search Dialog */}
-            <AniListSearchDialog
-                isOpen={showLinkDialog}
-                onClose={() => setShowLinkDialog(false)}
-                onSelect={handleAniListLink}
-                initialSearchTerm={manga.title}
-                mediaType="MANGA"
-            />
+                                <div className="flex flex-col gap-2 mb-6 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                                    {libraryCategories.map(cat => {
+                                        const isSelected = selectedCategories.includes(cat.id);
+                                        return (
+                                            <div
+                                                key={cat.id}
+                                                onClick={() => {
+                                                    if (isSelected) {
+                                                        setSelectedCategories(prev => prev.filter(id => id !== cat.id));
+                                                    } else {
+                                                        setSelectedCategories(prev => [...prev, cat.id]);
+                                                    }
+                                                }}
+                                                className={`group flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all duration-200
+                                            ${isSelected
+                                                        ? 'bg-[rgba(168,85,247,0.15)] border-purple-500/50 shadow-[0_0_15px_rgba(168,85,247,0.1)]'
+                                                        : 'bg-white/5 border-white/5 hover:bg-white/10 hover:border-white/20'
+                                                    }`}
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <span className={`font-medium transition-colors ${isSelected ? 'text-white' : 'text-white/70 group-hover:text-white'}`}>
+                                                        {cat.name}
+                                                    </span>
+                                                </div>
 
-            {/* Library Category Dialog */}
-            {
-                showLibraryDialog && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md animate-fade-in" onClick={() => setShowLibraryDialog(false)}>
-                        <div
-                            className="bg-[#15151e] p-6 rounded-2xl border border-white/10 w-full max-w-[380px] shadow-2xl transform transition-all scale-100"
-                            onClick={e => e.stopPropagation()}
-                        >
-                            <div className="text-center mb-6">
-                                <h3 className="text-xl font-bold text-white mb-1">
-                                    {inLibrary ? 'Update Library Entry' : 'Add to Library'}
-                                </h3>
-                                <p className="text-sm text-white/40">Select categories for this manga</p>
-                            </div>
+                                                <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-all duration-200
+                                            ${isSelected
+                                                        ? 'bg-purple-500 border-purple-500 scale-110'
+                                                        : 'border-white/20 group-hover:border-white/40'
+                                                    }`}
+                                                >
+                                                    {isSelected && (
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
+                                                            <polyline points="20 6 9 17 4 12"></polyline>
+                                                        </svg>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
 
-                            <div className="flex flex-col gap-2 mb-6 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
-                                {libraryCategories.map(cat => {
-                                    const isSelected = selectedCategories.includes(cat.id);
-                                    return (
-                                        <div
-                                            key={cat.id}
+                                <div className="flex gap-2 items-center mt-4">
+                                    {inLibrary && (
+                                        <button
                                             onClick={() => {
-                                                if (isSelected) {
-                                                    setSelectedCategories(prev => prev.filter(id => id !== cat.id));
-                                                } else {
-                                                    setSelectedCategories(prev => [...prev, cat.id]);
+                                                if (confirm("Remove from Library?")) {
+                                                    handleLibraryRemove();
                                                 }
                                             }}
-                                            className={`group flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all duration-200
-                                            ${isSelected
-                                                    ? 'bg-[rgba(168,85,247,0.15)] border-purple-500/50 shadow-[0_0_15px_rgba(168,85,247,0.1)]'
-                                                    : 'bg-white/5 border-white/5 hover:bg-white/10 hover:border-white/20'
-                                                }`}
+                                            className="p-3 rounded-xl text-red-400 hover:bg-red-500/10 border border-transparent hover:border-red-500/20 transition-all"
+                                            title="Remove from Library"
                                         >
-                                            <div className="flex items-center gap-3">
-                                                <span className={`font-medium transition-colors ${isSelected ? 'text-white' : 'text-white/70 group-hover:text-white'}`}>
-                                                    {cat.name}
-                                                </span>
-                                            </div>
-
-                                            <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-all duration-200
-                                            ${isSelected
-                                                    ? 'bg-purple-500 border-purple-500 scale-110'
-                                                    : 'border-white/20 group-hover:border-white/40'
-                                                }`}
-                                            >
-                                                {isSelected && (
-                                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
-                                                        <polyline points="20 6 9 17 4 12"></polyline>
-                                                    </svg>
-                                                )}
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-
-                            <div className="flex gap-2 items-center mt-4">
-                                {inLibrary && (
+                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                                        </button>
+                                    )}
                                     <button
-                                        onClick={() => {
-                                            if (confirm("Remove from Library?")) {
-                                                handleLibraryRemove();
-                                            }
-                                        }}
-                                        className="p-3 rounded-xl text-red-400 hover:bg-red-500/10 border border-transparent hover:border-red-500/20 transition-all"
-                                        title="Remove from Library"
+                                        onClick={() => setShowLibraryDialog(false)}
+                                        className="px-4 py-3 rounded-xl font-medium text-white/60 hover:text-white hover:bg-white/5 border border-transparent hover:border-white/10 transition-all"
                                     >
-                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                                        Cancel
                                     </button>
-                                )}
-                                <button
-                                    onClick={() => setShowLibraryDialog(false)}
-                                    className="px-4 py-3 rounded-xl font-medium text-white/60 hover:text-white hover:bg-white/5 border border-transparent hover:border-white/10 transition-all"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={handleLibrarySave}
-                                    className="flex-1 py-3 rounded-xl font-bold text-white shadow-lg transition-transform active:scale-95 hover:brightness-110"
-                                    style={{
-                                        background: 'linear-gradient(135deg, var(--color-zen-accent), #9c7cf0)',
-                                        boxShadow: '0 4px 15px rgba(168, 85, 247, 0.3)'
-                                    }}
-                                >
-                                    {inLibrary ? 'Save' : 'Add'}
-                                </button>
+                                    <button
+                                        onClick={handleLibrarySave}
+                                        className="flex-1 py-3 rounded-xl font-bold text-white shadow-lg transition-transform active:scale-95 hover:brightness-110"
+                                        style={{
+                                            background: 'linear-gradient(135deg, var(--color-zen-accent), #9c7cf0)',
+                                            boxShadow: '0 4px 15px rgba(168, 85, 247, 0.3)'
+                                        }}
+                                    >
+                                        {inLibrary ? 'Save' : 'Add'}
+                                    </button>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                )
-            }
+                    )
+                }
 
-            {/* Download Folder Configuration Dialog */}
-            <DownloadFolderDialog
-                isOpen={showDownloadFolderDialog}
-                onClose={() => {
-                    setShowDownloadFolderDialog(false);
-                    setPendingDownloadAction(null);
-                }}
-                onConfigured={() => {
-                    // Execute pending action if any
-                    if (pendingDownloadAction) {
-                        pendingDownloadAction();
+                {/* Download Folder Configuration Dialog */}
+                <DownloadFolderDialog
+                    isOpen={showDownloadFolderDialog}
+                    onClose={() => {
+                        setShowDownloadFolderDialog(false);
                         setPendingDownloadAction(null);
-                    }
-                }}
-            />
+                    }}
+                    onConfigured={() => {
+                        // Execute pending action if any
+                        if (pendingDownloadAction) {
+                            pendingDownloadAction();
+                            setPendingDownloadAction(null);
+                        }
+                    }}
+                />
 
-            {/* Filter Modal */}
-            <ChapterFilterModal
-                isOpen={showFilterModal}
-                onClose={() => setShowFilterModal(false)}
-                downloadedFilter={downloadedFilter}
-                onDownloadedChange={setDownloadedFilter}
-                unreadFilter={unreadFilter}
-                onUnreadChange={setUnreadFilter}
-                bookmarkedFilter={bookmarkedFilter}
-                onBookmarkedChange={setBookmarkedFilter}
-            />
-        </div >
+                {/* Filter Modal */}
+                <ChapterFilterModal
+                    isOpen={showFilterModal}
+                    onClose={() => setShowFilterModal(false)}
+                    downloadedFilter={downloadedFilter}
+                    onDownloadedChange={setDownloadedFilter}
+                    unreadFilter={unreadFilter}
+                    onUnreadChange={setUnreadFilter}
+                    bookmarkedFilter={bookmarkedFilter}
+                    onBookmarkedChange={setBookmarkedFilter}
+                />
+            </div>
+        </div>
     );
 }
 
 export default MangaSourceDetails;
-
-// --- MEMOIZED CHAPTER ENTRY COMPONENT ---
-// This prevents every single chapter from re-rendering when you select one item.
-// It matches the exact "Mihon" style requested (clean, simple icons, performant).
-
-interface ChapterRowProps {
-    chapter: Chapter;
-    isSelected: boolean;
-    isSelectionMode: boolean;
-    isRead: boolean;
-    isBookmarked: boolean;
-    isDownloaded: boolean;
-    isDownloading: boolean;
-    onToggle: (id: string) => void;
-    onPlay: (chapter: Chapter) => void;
-    onDownload: (chapter: Chapter) => void;
-    onBookmark: (id: string) => void;
-    onLongPress: (id: string) => void;
-    onTouchEnd: () => void;
-}
-
-const ChapterRow = memo(({
-    chapter,
-    isSelected,
-    isSelectionMode,
-    isRead,
-    isBookmarked,
-    isDownloaded,
-    isDownloading,
-    onToggle,
-    onPlay,
-    onDownload,
-    onBookmark,
-    onLongPress,
-    onTouchEnd
-}: ChapterRowProps) => {
-    return (
-        <div
-            className={`relative group flex items-center justify-between p-3 rounded-xl transition-all duration-200 cursor-pointer border border-transparent 
-            ${isSelected ? 'bg-purple-500/10 border-purple-500/30' : 'bg-transparent hover:bg-white/5'}`}
-            onClick={() => {
-                // If selection mode, toggle. If not, play.
-                if (isSelectionMode) {
-                    onToggle(chapter.id);
-                } else {
-                    onPlay(chapter);
-                }
-            }}
-            onTouchStart={() => onLongPress(chapter.id)}
-            onTouchEnd={onTouchEnd}
-            onMouseDown={() => onLongPress(chapter.id)}
-            onMouseUp={onTouchEnd}
-            onMouseLeave={onTouchEnd}
-            onContextMenu={(e) => {
-                e.preventDefault();
-                if (!isSelectionMode) {
-                    // Trigger selection mode and select this item
-                    // We need parent to handle this "enter mode" logic, 
-                    // but calling onLongPress effectively triggers the same timer logic if we want,
-                    // OR we can just force toggle if we assume parent handles "first selection enters mode".
-                    // The parent's onToggle handles adding to set. 
-                    // But we need to switch mode too.
-                    // The current onLongPress implementation in parent sets isSelectionMode(true).
-                    // So let's just trigger that logic directly if we can, or assume context menu implies selection.
-                    // Since we don't passed "enterSelectionMode" prop, let's reuse onLongPress logic which does exactly that after 500ms? 
-                    // No, context menu is immediate.
-                    // Let's just call onLongPress(chapter.id) which starts timer? No, that's slow.
-                    // Ideally we should have onSelect(id) that forces selection.
-                    // For now, let's just rely on the long press OR simulated long press.
-                    // Actually, let's just use onToggle. The parent should observe "selected count > 0 -> mode = true" if we added that effect?
-                    // We added effect: size=0 -> mode=false.
-                    // DO we have effect: size>0 -> mode=true? No.
-                    // So we probably strictly need to start selection mode via long press currently.
-                    // Users can long press to start.
-                }
-            }}
-        >
-            {/* Selection Checkbox */}
-            {isSelectionMode && (
-                <div className="mr-3 shrink-0">
-                    <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${isSelected ? 'bg-purple-500 border-purple-500' : 'border-white/30 bg-transparent'}`}>
-                        {isSelected && <CheckIcon size={12} />}
-                    </div>
-                </div>
-            )}
-
-            {/* Chapter Info */}
-            <div className="flex-1 min-w-0 pr-4">
-                <div className={`font-medium text-sm truncate mb-0.5 ${isRead ? 'text-white/40' : 'text-white'}`}>
-                    Chapter {chapter.number}
-                </div>
-                <div className="flex items-center gap-2 text-xs text-white/40 truncate">
-                    {chapter.dateUpload && <span>{chapter.dateUpload.toLocaleDateString()}</span>}
-                    {chapter.scanlator && (
-                        <>
-                            <span className="w-1 h-1 rounded-full bg-white/20" />
-                            <span className="truncate max-w-[120px]">{chapter.scanlator}</span>
-                        </>
-                    )}
-                </div>
-            </div>
-
-            {/* Actions */}
-            <div className="flex items-center gap-1 shrink-0">
-                {isRead && !isSelected && <span className="text-white/20 mr-1" title="Read"><CheckIcon size={16} /></span>}
-
-                {!isDownloaded ? (
-                    <button
-                        className={`p-2 rounded-full transition-all active:scale-95 ${isDownloading ? 'text-blue-400' : 'text-white/30 hover:text-white hover:bg-white/10'}`}
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            onDownload(chapter);
-                        }}
-                        title="Download"
-                    >
-                        {isDownloading ? (
-                            <div className="w-4 h-4 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
-                        ) : (
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                                <polyline points="7 10 12 15 17 10"></polyline>
-                                <line x1="12" y1="15" x2="12" y2="3"></line>
-                            </svg>
-                        )}
-                    </button>
-                ) : (
-                    <span className="p-2 text-blue-400" title="Downloaded">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="none">
-                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
-                        </svg>
-                    </span>
-                )}
-
-                {/* Bookmark */}
-                <button
-                    className={`p-2 rounded-full transition-all active:scale-95 ${isBookmarked ? 'text-purple-400' : 'text-white/30 hover:text-white hover:bg-white/10'}`}
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        onBookmark(chapter.id);
-                    }}
-                    title="Bookmark"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill={isBookmarked ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
-                    </svg>
-                </button>
-            </div>
-        </div>
-    );
-});
