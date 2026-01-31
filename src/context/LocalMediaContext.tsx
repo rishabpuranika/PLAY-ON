@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { pickDirectory } from '../lib/fileSystem';
 
 import { mkdir, exists } from '@tauri-apps/plugin-fs';
-import { documentDir, join } from '@tauri-apps/api/path';
+import { join } from '@tauri-apps/api/path';
 
 export interface LocalFolder {
     path: string;
@@ -89,25 +89,9 @@ export function LocalMediaProvider({ children }: { children: React.ReactNode }) 
 
     const setupDefaultLibrary = async () => {
         try {
-            // Simplify flow: specific automation requested by user
-            // We interpret "automatically selected" as using the standard Documents location
-
-            let root: string | null = null;
-
-            // Try standard Documents folder first (Automatic mode)
-            try {
-                root = await documentDir();
-            } catch (e) {
-                console.warn("Could not get documentDir, falling back to picker", e);
-            }
-
-            // Fallback if documentDir fails (e.g. some environments)
-            if (!root) {
-                root = await pickDirectory("Select where to create 'PLAY-ON' library");
-            }
-            if (!root) return;
-
-            const baseDir = await join(root, 'PLAY-ON');
+            // Mobile-only: Use fixed path
+            const root = '/storage/emulated/0';
+            const baseDir = await join(root, 'PLAYON');
             const animeDir = await join(baseDir, 'anime');
             const mangaDir = await join(baseDir, 'manga');
 

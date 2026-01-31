@@ -70,7 +70,9 @@ impl StorageManager {
     pub async fn get_downloads_dir(&self) -> Result<PathBuf, String> {
         if let Some(location) = &self.prefs.download_location {
             let path = PathBuf::from(location);
-            let downloads = path.join(&self.prefs.downloads_dir_name);
+            // User requested to put downloads in "Manga" folder
+            // We force this name here to align with the "Manga" folder shown in UI
+            let downloads = path.join("Manga");
 
             // Ensure directory exists
             if !downloads.exists() {

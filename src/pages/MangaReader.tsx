@@ -229,7 +229,7 @@ function MangaReader() {
                                 // Let's try to invoke a simple 'join_path' if we added it? We didn't.
                                 // We'll stick to manual join but log it.
 
-                                const cbzPath = `${downloadDir}${downloadDir.endsWith('/') || downloadDir.endsWith('\\') ? '' : '/'}${mangaDirName}/${chapterFileName}`.replace(/\\/g, '/');
+                                const cbzPath = `${downloadDir}${downloadDir.endsWith('/') || downloadDir.endsWith('\\') ? '' : '/'}Manga/${mangaDirName}/${chapterFileName}`.replace(/\\/g, '/');
 
                                 console.log('[MangaReader] Checking CBZ at:', cbzPath);
 

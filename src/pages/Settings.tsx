@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { invoke } from '@tauri-apps/api/core';
 
 
 import { useSettings } from '../context/SettingsContext';
@@ -17,18 +16,24 @@ import {
     setDefaultCategory
 } from '../lib/localMangaDb';
 import {
+    getAnimeLibraryCategories,
+    addAnimeLibraryCategory,
+    deleteAnimeLibraryCategory
+} from '../lib/localAnimeDb';
+import {
     SettingsIcon,
-    BookIcon,
     FolderIcon,
     WrenchIcon,
     PuzzleIcon,
     UserIcon,
-    DownloadIcon
+    DownloadIcon,
+    Database
 } from '../components/ui/Icons';
 import { Dropdown } from '../components/ui/Dropdown';
 import './Settings.css';
 import ExtensionsSettings from '../components/settings/ExtensionsSettings';
 import { ProfileSettings } from '../components/settings/ProfileSettings';
+import BackupSettings from '../components/settings/BackupSettings';
 
 // ============================================================================
 // SETTINGS PAGE
@@ -37,7 +42,7 @@ import { ProfileSettings } from '../components/settings/ProfileSettings';
 
 import DownloadQueue from './DownloadQueue';
 
-type TabId = 'general' | 'profile' | 'extensions' | 'manga' | 'downloads' | 'storage' | 'advanced';
+type TabId = 'general' | 'profile' | 'extensions' | 'downloads' | 'storage' | 'backup' | 'advanced';
 
 interface Tab {
     id: TabId;
@@ -49,9 +54,9 @@ const TABS: Tab[] = [
     { id: 'general', label: 'General', icon: <SettingsIcon size={18} /> },
     { id: 'profile', label: 'Profile', icon: <UserIcon size={18} /> },
     { id: 'extensions', label: 'Extensions', icon: <PuzzleIcon size={18} /> },
-    { id: 'manga', label: 'Manga', icon: <BookIcon size={18} /> },
     { id: 'downloads', label: 'Downloads', icon: <DownloadIcon size={18} /> },
     { id: 'storage', label: 'Storage & Library', icon: <FolderIcon size={18} /> },
+    { id: 'backup', label: 'Backup & Restore', icon: <Database size={18} /> },
     { id: 'advanced', label: 'Advanced', icon: <WrenchIcon size={18} /> },
 ];
 
@@ -132,6 +137,208 @@ const THEME_PREVIEWS: Record<string, { bg: string; accent: string; text: string;
         border: 'rgba(0,0,0,0.1)'
     },
 };
+
+// BackupRestoreSection removed - replaced by dedicated tab
+
+// ============================================================================
+// COMPONENT: Manga Categories Section
+// ============================================================================
+
+function MangaCategoriesSection() {
+    const [, setForceUpdate] = useState(0);
+    const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+    const [newCategoryName, setNewCategoryName] = useState('');
+    const [defaultCatId, setDefaultCatIdState] = useState(getDefaultCategory());
+
+    const refresh = () => setForceUpdate(prev => prev + 1);
+    const currentCategories = getLibraryCategories();
+
+    const handleConfirmAdd = () => {
+        if (newCategoryName.trim()) {
+            try {
+                addLibraryCategory(newCategoryName.trim());
+                refresh();
+                setIsAddDialogOpen(false);
+                setNewCategoryName('');
+            } catch {
+                alert("Category exists or invalid");
+            }
+        }
+    };
+
+    const handleDeleteCategory = (id: string) => {
+        if (id === 'default') {
+            alert("Cannot delete Default category");
+            return;
+        }
+        if (confirm("Delete this category? Items in it will remain in library.")) {
+            deleteLibraryCategory(id);
+            refresh();
+        }
+    };
+
+    return (
+        <div className="setting-group">
+            <h3 className="setting-group-title">📚 Manga Categories</h3>
+
+            <div className="setting-row" style={{ marginBottom: '16px' }}>
+                <div className="setting-info">
+                    <span className="setting-label">Default Category</span>
+                    <span className="setting-description">Category for new manga</span>
+                </div>
+                <Dropdown
+                    value={defaultCatId}
+                    options={currentCategories.map(cat => ({ value: cat.id, label: cat.name }))}
+                    onChange={(val) => {
+                        setDefaultCategory(val);
+                        setDefaultCatIdState(val);
+                    }}
+                />
+            </div>
+
+            <div role="list" className="setting-list" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {currentCategories.map(cat => (
+                    <div key={cat.id} className="setting-row" style={{ justifyContent: 'space-between' }}>
+                        <div className="setting-info">
+                            <span className="setting-label">{cat.name}</span>
+                        </div>
+                        {cat.id !== 'default' && (
+                            <button
+                                className="setting-button danger"
+                                onClick={() => handleDeleteCategory(cat.id)}
+                                style={{ padding: '4px 8px', fontSize: '11px' }}
+                            >
+                                Delete
+                            </button>
+                        )}
+                    </div>
+                ))}
+                <button className="setting-button primary" style={{ marginTop: '8px' }} onClick={() => setIsAddDialogOpen(true)}>
+                    + Add Category
+                </button>
+            </div>
+
+            {isAddDialogOpen && (
+                <div
+                    style={{ backgroundColor: 'var(--theme-bg-overlay)', position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)' }}
+                    onClick={() => setIsAddDialogOpen(false)}
+                >
+                    <div
+                        style={{ backgroundColor: 'var(--theme-bg-card)', border: '1px solid var(--theme-border-subtle)', padding: '24px', borderRadius: '16px', width: '320px', boxShadow: '0 10px 40px rgba(0,0,0,0.5)' }}
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <h3 style={{ color: 'var(--theme-text-main)', fontSize: '18px', fontWeight: 'bold', marginBottom: '8px' }}>New Manga Category</h3>
+                        <input
+                            type="text"
+                            value={newCategoryName}
+                            onChange={(e) => setNewCategoryName(e.target.value)}
+                            placeholder="e.g. Action, Plan to Read"
+                            style={{ width: '100%', padding: '10px', borderRadius: '50px', marginBottom: '16px', backgroundColor: 'var(--theme-input-bg)', border: 'none', color: 'var(--theme-text-main)', outline: 'none' }}
+                            autoFocus
+                            onKeyDown={(e) => e.key === 'Enter' && handleConfirmAdd()}
+                        />
+                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                            <button onClick={() => setIsAddDialogOpen(false)} className="setting-button">Cancel</button>
+                            <button onClick={handleConfirmAdd} className="setting-button primary">Create</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+// ============================================================================
+// COMPONENT: Anime Categories Section
+// ============================================================================
+
+function AnimeCategoriesSection() {
+    const [, setForceUpdate] = useState(0);
+    const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+    const [newCategoryName, setNewCategoryName] = useState('');
+
+    const refresh = () => setForceUpdate(prev => prev + 1);
+    const currentCategories = getAnimeLibraryCategories();
+
+    const handleConfirmAdd = () => {
+        if (newCategoryName.trim()) {
+            try {
+                addAnimeLibraryCategory(newCategoryName.trim());
+                refresh();
+                setIsAddDialogOpen(false);
+                setNewCategoryName('');
+            } catch {
+                alert("Category exists or invalid");
+            }
+        }
+    };
+
+    const handleDeleteCategory = (id: string) => {
+        if (id === 'default') {
+            alert("Cannot delete Default category");
+            return;
+        }
+        if (confirm("Delete this category? Items in it will remain in library.")) {
+            deleteAnimeLibraryCategory(id);
+            refresh();
+        }
+    };
+
+    return (
+        <div className="setting-group">
+            <h3 className="setting-group-title">🎬 Anime Categories</h3>
+
+            <div role="list" className="setting-list" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {currentCategories.map(cat => (
+                    <div key={cat.id} className="setting-row" style={{ justifyContent: 'space-between' }}>
+                        <div className="setting-info">
+                            <span className="setting-label">{cat.name}</span>
+                        </div>
+                        {cat.id !== 'default' && (
+                            <button
+                                className="setting-button danger"
+                                onClick={() => handleDeleteCategory(cat.id)}
+                                style={{ padding: '4px 8px', fontSize: '11px' }}
+                            >
+                                Delete
+                            </button>
+                        )}
+                    </div>
+                ))}
+                <button className="setting-button primary" style={{ marginTop: '8px' }} onClick={() => setIsAddDialogOpen(true)}>
+                    + Add Category
+                </button>
+            </div>
+
+            {isAddDialogOpen && (
+                <div
+                    style={{ backgroundColor: 'var(--theme-bg-overlay)', position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)' }}
+                    onClick={() => setIsAddDialogOpen(false)}
+                >
+                    <div
+                        style={{ backgroundColor: 'var(--theme-bg-card)', border: '1px solid var(--theme-border-subtle)', padding: '24px', borderRadius: '16px', width: '320px', boxShadow: '0 10px 40px rgba(0,0,0,0.5)' }}
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <h3 style={{ color: 'var(--theme-text-main)', fontSize: '18px', fontWeight: 'bold', marginBottom: '8px' }}>New Anime Category</h3>
+                        <input
+                            type="text"
+                            value={newCategoryName}
+                            onChange={(e) => setNewCategoryName(e.target.value)}
+                            placeholder="e.g. Action, Plan to Watch"
+                            style={{ width: '100%', padding: '10px', borderRadius: '50px', marginBottom: '16px', backgroundColor: 'var(--theme-input-bg)', border: 'none', color: 'var(--theme-text-main)', outline: 'none' }}
+                            autoFocus
+                            onKeyDown={(e) => e.key === 'Enter' && handleConfirmAdd()}
+                        />
+                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                            <button onClick={() => setIsAddDialogOpen(false)} className="setting-button">Cancel</button>
+                            <button onClick={handleConfirmAdd} className="setting-button primary">Create</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
 
 // ============================================================================
 // SECTION: General Settings
@@ -253,6 +460,10 @@ function GeneralSettings() {
                 </div>
             </div>
 
+            {/* Library Categories Sections */}
+            <MangaCategoriesSection />
+            <AnimeCategoriesSection />
+
         </div>
     );
 }
@@ -268,75 +479,14 @@ function GeneralSettings() {
 // ============================================================================
 
 function DownloadsSettings() {
-    const { settings, updateSetting } = useSettings();
+    // const { settings, updateSetting } = useSettings();
 
     return (
         <div className="settings-section">
             <h2 className="settings-section-title">Downloads</h2>
             <p className="settings-section-description">
-                Manage download location and active queue
+                Manage active download queue
             </p>
-
-            <div className="setting-group">
-                <h3 className="setting-group-title">Location</h3>
-                <SettingRow label="Manga Download Path" description="Where to save downloaded chapters">
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%' }}>
-                        <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            padding: '12px 16px',
-                            background: 'var(--theme-input-bg)',
-                            borderRadius: '12px',
-                            border: '1px solid var(--theme-border-subtle)',
-                            width: '100%'
-                        }}>
-                            <span style={{
-                                fontSize: '13px',
-                                fontFamily: 'var(--font-mono)',
-                                color: settings.mangaDownloadPath ? 'var(--theme-text-main)' : 'var(--theme-text-muted)',
-                                wordBreak: 'break-all',
-                                lineHeight: '1.4'
-                            }}>
-                                {settings.mangaDownloadPath || 'No download path configured'}
-                            </span>
-                        </div>
-
-                        <div style={{ display: 'flex', gap: '8px' }}>
-                            <button
-                                className="setting-button"
-                                style={{ flex: 1, justifyContent: 'center' }}
-                                onClick={async () => {
-                                    try {
-                                        const selected = await invoke<string>('pick_download_directory');
-                                        if (selected) {
-                                            updateSetting('mangaDownloadPath', selected);
-                                        }
-                                    } catch (err) {
-                                        console.error("Failed to open dialog", err);
-                                    }
-                                }}
-                            >
-                                <FolderIcon size={16} style={{ marginRight: '6px' }} />
-                                Browse
-                            </button>
-
-                            {settings.mangaDownloadPath && (
-                                <button
-                                    className="setting-button danger"
-                                    onClick={() => {
-                                        if (confirm('Clear the download path? You will need to configure it again to download manga.')) {
-                                            updateSetting('mangaDownloadPath', '');
-                                        }
-                                    }}
-                                    title="Clear download path"
-                                >
-                                    Clear
-                                </button>
-                            )}
-                        </div>
-                    </div>
-                </SettingRow>
-            </div>
 
             <div className="setting-group">
                 <h3 className="setting-group-title">Queue</h3>
@@ -346,171 +496,6 @@ function DownloadsSettings() {
         </div>
     );
 }
-
-// ============================================================================
-// SECTION: Manga Settings
-// ============================================================================
-
-function MangaSettings() {
-    const [, setForceUpdate] = useState(0);
-    const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-    const [newCategoryName, setNewCategoryName] = useState('');
-    const [defaultCatId, setDefaultCatId] = useState(getDefaultCategory());
-
-    // Load categories on mount and update
-    const refresh = () => setForceUpdate(prev => prev + 1);
-    const currentCategories = getLibraryCategories();
-
-    const handleConfirmAdd = () => {
-        if (newCategoryName.trim()) {
-            try {
-                addLibraryCategory(newCategoryName.trim());
-                refresh();
-                setIsAddDialogOpen(false);
-                setNewCategoryName('');
-            } catch (e) {
-                alert("Category exists or invalid");
-            }
-        }
-    };
-
-    const handleDeleteCategory = (id: string) => {
-        if (id === 'default') {
-            alert("Cannot delete Default category");
-            return;
-        }
-        if (confirm("Delete this category? Items in it will remain in library.")) {
-            deleteLibraryCategory(id);
-            refresh();
-        }
-    };
-
-    return (
-        <div className="settings-section">
-            <h2 className="settings-section-title">Manga</h2>
-            <p className="settings-section-description">
-                Manga preferences and library tools
-            </p>
-
-            <div className="setting-group">
-                <h3 className="setting-group-title">Preferences</h3>
-                <div className="setting-row">
-                    <div className="setting-info">
-                        <span className="setting-label">Default Category</span>
-                        <span className="setting-description">Category to pre-select when adding manga</span>
-                    </div>
-                    <Dropdown
-                        value={defaultCatId}
-                        options={currentCategories.map(cat => ({ value: cat.id, label: cat.name }))}
-                        onChange={(val) => {
-                            setDefaultCategory(val);
-                            setDefaultCatId(val);
-                        }}
-                    />
-                </div>
-            </div>
-
-            <div className="setting-group">
-                <h3 className="setting-group-title">Library Categories</h3>
-                <div role="list" className="setting-list" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    {currentCategories.map(cat => (
-                        <div key={cat.id} className="setting-row" style={{ justifyContent: 'space-between' }}>
-                            <div className="setting-info">
-                                <span className="setting-label">{cat.name}</span>
-                                <span className="setting-description" style={{ fontSize: '10px', opacity: 0.5 }}>ID: {cat.id}</span>
-                            </div>
-                            {cat.id !== 'default' && (
-                                <button
-                                    className="setting-button danger"
-                                    onClick={() => handleDeleteCategory(cat.id)}
-                                    style={{ padding: '4px 8px', fontSize: '11px' }}
-                                >
-                                    Delete
-                                </button>
-                            )}
-                        </div>
-                    ))}
-                    <button className="setting-button primary" style={{ marginTop: '8px' }} onClick={() => setIsAddDialogOpen(true)}>
-                        + Add Category
-                    </button>
-                </div>
-            </div>
-
-            {/* Add Category Dialog */}
-            {
-                isAddDialogOpen && (
-                    <div
-                        className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm"
-                        style={{ backgroundColor: 'var(--theme-bg-overlay)', position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)' }}
-                        onClick={() => setIsAddDialogOpen(false)}
-                    >
-                        <div
-                            className="p-6 rounded-xl w-[320px]"
-                            style={{
-                                backgroundColor: 'var(--theme-bg-card)',
-                                border: '1px solid var(--theme-border-subtle)',
-                                padding: '24px',
-                                borderRadius: '16px',
-                                width: '320px',
-                                boxShadow: '0 10px 40px rgba(0,0,0,0.5)'
-                            }}
-                            onClick={e => e.stopPropagation()}
-                        >
-                            <h3
-                                style={{ color: 'var(--theme-text-main)', fontSize: '18px', fontWeight: 'bold', marginBottom: '8px' }}
-                            >
-                                New Category
-                            </h3>
-                            <p
-                                style={{ color: 'var(--theme-text-muted)', fontSize: '14px', marginBottom: '16px' }}
-                            >
-                                Create a new collection for your manga.
-                            </p>
-
-                            <input
-                                type="text"
-                                value={newCategoryName}
-                                onChange={(e) => setNewCategoryName(e.target.value)}
-                                placeholder="e.g. Action, Plan to Read"
-                                style={{
-                                    width: '100%',
-                                    padding: '10px',
-                                    borderRadius: '50px',
-                                    marginBottom: '16px',
-                                    backgroundColor: 'var(--theme-input-bg)',
-                                    border: 'none',
-                                    color: 'var(--theme-text-main)',
-                                    outline: 'none'
-                                }}
-                                autoFocus
-                                onKeyDown={(e) => e.key === 'Enter' && handleConfirmAdd()}
-                            />
-
-                            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                                <button
-                                    onClick={() => setIsAddDialogOpen(false)}
-                                    className="setting-button"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={handleConfirmAdd}
-                                    className="setting-button primary"
-                                >
-                                    Create
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                )
-            }
-        </div >
-    );
-}
-
-// ============================================================================
-// SECTION: Storage Settings
-// ============================================================================
 
 // ============================================================================
 // SECTION: Storage Settings
@@ -609,6 +594,7 @@ function StorageSettings() {
                     )}
                 </div>
             </div>
+
         </div>
     );
 }
@@ -794,12 +780,12 @@ export default function Settings() {
                 return <ProfileSettings variant="embedded" />;
             case 'extensions':
                 return <ExtensionsSettings />;
-            case 'manga':
-                return <MangaSettings />;
             case 'downloads':
                 return <DownloadsSettings />;
             case 'storage':
                 return <StorageSettings />;
+            case 'backup':
+                return <BackupSettings />;
             case 'advanced':
                 return <AdvancedSettings />;
             default:

@@ -43,6 +43,8 @@ rand = "0.8"
 sanitize-filename = "0.5"
 md5 = "0.7"
 thiserror = "1.0"
+jni = "0.21"
+chrono = { version = "0.4", features = ["serde"] }
 
 [profile.release]
 opt-level = "s"

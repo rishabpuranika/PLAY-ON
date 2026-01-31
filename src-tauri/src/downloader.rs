@@ -39,8 +39,14 @@ pub async fn download_chapter_to_cbz(
         ));
     }
 
-    // Create manga directory if it doesn't exist
-    let manga_dir = base_path.join(&sanitized_manga);
+    // Create Manga subdirectory first, then manga title directory
+    let manga_parent = base_path.join("Manga");
+    if !manga_parent.exists() {
+        std::fs::create_dir_all(&manga_parent)
+            .map_err(|e| format!("Failed to create Manga directory: {}", e))?;
+    }
+
+    let manga_dir = manga_parent.join(&sanitized_manga);
     if !manga_dir.exists() {
         std::fs::create_dir_all(&manga_dir)
             .map_err(|e| format!("Failed to create manga directory: {}", e))?;

@@ -13,6 +13,7 @@ mod cbz_reader;
 // Import downloader module
 mod downloader;
 // Import MyAnimeList module
+mod backup;
 mod download;
 mod myanimelist;
 mod storage_prefs;
@@ -221,6 +222,7 @@ async fn delete_chapter_command(
     use std::path::PathBuf;
 
     let path = PathBuf::from(&download_dir)
+        .join("Manga")
         .join(&manga_title)
         .join(&chapter_title);
 
@@ -351,7 +353,7 @@ fn mal_generate_pkce() -> (String, String) {
 
 /// Complete MAL OAuth flow
 #[tauri::command]
-async fn mal_start_oauth_flow(client_id: String) -> Result<String, String> {
+async fn mal_start_oauth_flow(_client_id: String) -> Result<String, String> {
     #[cfg(target_os = "android")]
     {
         // Mobile doesn't support local server OAuth flow
@@ -670,57 +672,16 @@ async fn proxy_request(
 
 #[tauri::command]
 async fn pick_download_directory(
-    app: tauri::AppHandle,
+    _app: tauri::AppHandle,
     state: tauri::State<'_, AppState>,
 ) -> Result<String, String> {
-    let path_str = {
-        #[cfg(target_os = "android")]
-        {
-            let downloads_dir = app
-                .path()
-                .download_dir()
-                .map_err(|e| format!("Failed to get downloads directory: {}", e))?;
+    // Mobile-only: Use fixed path
+    let path_str = "/storage/emulated/0/PLAYON".to_string();
+    let path = std::path::PathBuf::from(&path_str);
 
-            let path_str = downloads_dir
-                .to_str()
-                .ok_or("Invalid path encoding")?
-                .to_string();
-
-            if !downloads_dir.exists() {
-                std::fs::create_dir_all(&downloads_dir)
-                    .map_err(|e| format!("Failed to create directory: {}", e))?;
-            }
-            path_str
-        }
-
-        #[cfg(not(target_os = "android"))]
-        {
-            use tauri_plugin_dialog::DialogExt;
-            let (tx, rx) = std::sync::mpsc::channel();
-
-            app.dialog()
-                .file()
-                .set_title("Select Download Location")
-                .set_can_create_directories(true)
-                .pick_folder(move |path| {
-                    let _ = tx.send(path);
-                });
-
-            let folder_path = rx.recv().map_err(|_| "No folder selected".to_string())?;
-
-            if let Some(path) = folder_path {
-                let path_buf = path.into_path().map_err(|e| e.to_string())?;
-                let path_str = path_buf
-                    .to_str()
-                    .ok_or("Invalid path encoding")?
-                    .to_string();
-
-                path_str
-            } else {
-                return Err("No folder selected".to_string());
-            }
-        }
-    };
+    if !path.exists() {
+        std::fs::create_dir_all(&path).map_err(|e| format!("Failed to create directory: {}", e))?;
+    }
 
     // Save logic preserved from original to ensure functionality
     let mut manager = state.storage_manager.lock().await;
@@ -756,6 +717,48 @@ async fn get_download_location(
 ) -> Result<Option<String>, String> {
     let manager = state.storage_manager.lock().await;
     Ok(manager.get_download_location())
+}
+
+/// Manually set the download directory path (for Android where folder picker doesn't work)
+#[tauri::command]
+async fn set_download_directory(
+    state: tauri::State<'_, AppState>,
+    path: String,
+) -> Result<String, String> {
+    // Validate the path exists or can be created
+    let path_buf = std::path::PathBuf::from(&path);
+
+    if !path_buf.exists() {
+        tokio::fs::create_dir_all(&path_buf)
+            .await
+            .map_err(|e| format!("Failed to create directory: {}", e))?;
+    }
+
+    // Save to preferences
+    let mut manager = state.storage_manager.lock().await;
+    manager.set_download_location(path.clone());
+    manager.save_prefs()?;
+
+    // Create subdirectories
+    let downloads_path = path_buf.join("downloads");
+    let local_path = path_buf.join("local");
+    let backup_path = path_buf.join("backup");
+
+    for dir in &[downloads_path.clone(), local_path, backup_path] {
+        if !dir.exists() {
+            tokio::fs::create_dir_all(dir)
+                .await
+                .map_err(|e| format!("Failed to create directory: {}", e))?;
+        }
+    }
+
+    // Create .nomedia file
+    let nomedia = downloads_path.join(".nomedia");
+    if !nomedia.exists() {
+        let _ = tokio::fs::write(&nomedia, "").await;
+    }
+
+    Ok(path)
 }
 
 #[tauri::command]
@@ -795,7 +798,14 @@ pub fn run() {
             download_image_for_notification,
             cbz_reader::get_cbz_info,
             cbz_reader::get_cbz_page,
+            cbz_reader::get_cbz_page,
             cbz_reader::is_valid_cbz,
+            backup::get_backup_config,
+            backup::save_backup_config,
+            backup::create_backup,
+            backup::restore_backup,
+            backup::list_backups,
+            backup::export_backup_to_path,
             hide_window,
             // MAL commands
             mal_generate_pkce,
@@ -816,6 +826,7 @@ pub fn run() {
             // Storage & Download
             pick_download_directory,
             get_download_location,
+            set_download_directory,
             download_chapter,
             download_chapter_command,
             delete_chapter_command,
