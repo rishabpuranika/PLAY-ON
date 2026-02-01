@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { useLibrarySettings } from '../context/LibrarySettingsContext';
 import LibraryFilterSheet from '../components/library/LibraryFilterSheet';
 import { checkForMangaUpdates } from '../services/NotificationService';
+import { useLocalLibrary } from '../hooks/useLocalLibrary';
 import {
     getLibraryEntries,
     LocalMangaEntry,
@@ -20,6 +21,7 @@ export default function MangaLibrary() {
 
     const navigate = useNavigate();
     const { settings } = useLibrarySettings();
+    const { getUnreadCount } = useLocalLibrary();
     const [activeCategoryId, setActiveCategoryId] = useState<string>('');
     const [searchQuery, setSearchQuery] = useState('');
     const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -322,6 +324,12 @@ export default function MangaLibrary() {
                                             {settings.display.showBadges.unread && entry.chapter > 0 && (
                                                 <div className="absolute top-1 left-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded backdrop-blur-sm">
                                                     Ch. {entry.chapter}
+                                                </div>
+                                            )}
+                                            {/* Mihon-style unread badge */}
+                                            {entry.totalChapters && getUnreadCount(entry.id, entry.totalChapters) > 0 && (
+                                                <div className="absolute top-1 right-1 bg-[#9213ec] text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                                    {getUnreadCount(entry.id, entry.totalChapters)}
                                                 </div>
                                             )}
                                         </>

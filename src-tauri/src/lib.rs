@@ -15,6 +15,7 @@ mod downloader;
 // Import MyAnimeList module
 mod backup;
 mod download;
+mod manga_progress;
 mod myanimelist;
 mod storage_prefs;
 
@@ -38,6 +39,7 @@ use tauri::{Emitter, Manager};
 pub struct AppState {
     storage_manager: Arc<AsyncMutex<StorageManager>>,
     download_manager: DownloadManager,
+    manga_progress: Arc<manga_progress::MangaProgressManager>,
 }
 
 /// Tauri command to search for anime on AniList
@@ -770,6 +772,99 @@ async fn download_chapter(
     Ok("queued".to_string())
 }
 
+// ============================================================================
+// MANGA PROGRESS COMMANDS
+// ============================================================================
+
+/// Toggle a single chapter's read status (local only)
+#[tauri::command]
+async fn toggle_local_chapter(
+    state: tauri::State<'_, AppState>,
+    manga_id: String,
+    chapter_id: String,
+    is_read: bool,
+) -> Result<String, String> {
+    let result = state
+        .manga_progress
+        .toggle_chapter(&manga_id, &chapter_id, is_read)?;
+    serde_json::to_string(&result).map_err(|e| format!("Serialization error: {}", e))
+}
+
+/// Bulk update chapters (local only)
+#[tauri::command]
+async fn bulk_update_chapters(
+    state: tauri::State<'_, AppState>,
+    manga_id: String,
+    chapter_ids: Vec<String>,
+    is_read: bool,
+) -> Result<usize, String> {
+    state
+        .manga_progress
+        .bulk_update_chapters(&manga_id, chapter_ids, is_read)
+}
+
+/// Get chapter read status (local override > AniList fallback)
+#[tauri::command]
+async fn get_chapter_read_status(
+    state: tauri::State<'_, AppState>,
+    manga_id: String,
+    chapter_id: String,
+    chapter_number: f64,
+) -> Result<String, String> {
+    let (is_read, is_local_override) =
+        state
+            .manga_progress
+            .get_chapter_status(&manga_id, &chapter_id, chapter_number);
+    let result = serde_json::json!({
+        "is_read": is_read,
+        "is_local_override": is_local_override
+    });
+    Ok(result.to_string())
+}
+
+/// Initialize from AniList (set sync point)
+#[tauri::command]
+async fn init_manga_from_anilist(
+    state: tauri::State<'_, AppState>,
+    manga_id: String,
+    progress: f64,
+) -> Result<(), String> {
+    state
+        .manga_progress
+        .initialize_from_anilist(&manga_id, progress)
+}
+
+/// Update AniList sync point (after successful API update)
+#[tauri::command]
+async fn update_manga_sync_point(
+    state: tauri::State<'_, AppState>,
+    manga_id: String,
+    chapter_number: f64,
+) -> Result<(), String> {
+    state
+        .manga_progress
+        .update_sync_point(&manga_id, chapter_number)
+}
+
+/// Get manga progress entry
+#[tauri::command]
+async fn get_manga_progress(
+    state: tauri::State<'_, AppState>,
+    manga_id: String,
+) -> Result<String, String> {
+    let entry = state.manga_progress.get_entry(&manga_id);
+    serde_json::to_string(&entry).map_err(|e| format!("Serialization error: {}", e))
+}
+
+/// Clear local overrides for a manga
+#[tauri::command]
+async fn clear_manga_overrides(
+    state: tauri::State<'_, AppState>,
+    manga_id: String,
+) -> Result<(), String> {
+    state.manga_progress.clear_local_overrides(&manga_id)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let builder = tauri::Builder::default()
@@ -830,6 +925,14 @@ pub fn run() {
             download_chapter,
             download_chapter_command,
             delete_chapter_command,
+            // Manga Progress
+            toggle_local_chapter,
+            bulk_update_chapters,
+            get_chapter_read_status,
+            init_manga_from_anilist,
+            update_manga_sync_point,
+            get_manga_progress,
+            clear_manga_overrides,
         ])
         .setup(|app| {
             // Initialize storage manager
@@ -837,6 +940,9 @@ pub fn run() {
 
             // Initialize download manager
             let (download_manager, mut rx) = DownloadManager::new(storage_manager.clone());
+
+            // Initialize manga progress manager
+            let manga_progress = manga_progress::MangaProgressManager::new(app.handle().clone());
 
             // Spawn event listener
             let handle = app.handle().clone();
@@ -849,6 +955,7 @@ pub fn run() {
             app.manage(AppState {
                 storage_manager: Arc::new(AsyncMutex::new(storage_manager)),
                 download_manager,
+                manga_progress: Arc::new(manga_progress),
             });
 
             // Deep link registration (moved here or kept? The original had a setup block. I need to merge them.)

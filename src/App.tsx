@@ -52,7 +52,7 @@ import { useAutoSync } from './hooks/useAutoSync';
 import { ApolloProvider } from '@apollo/client';
 import { apolloClient } from './lib/apollo';
 import { checkAndRefreshCache } from './lib/cacheRefresh';
-import SplashScreen from './components/ui/SplashScreen';
+
 import { ExtensionManager } from './services/ExtensionManager';
 import { AnimeExtensionManager } from './services/AnimeExtensionManager';
 
@@ -89,7 +89,7 @@ function ProtectedRoute() {
 function AppContent() {
   // Detect mobile environment to disable heavy splash screen
   // const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-  const [showSplash, setShowSplash] = useState(true);
+
 
   // These hooks consume contexts provided by AppWrapper
   useOfflineSync();
@@ -142,10 +142,7 @@ function AppContent() {
   return (
     <>
       <StoragePermissionPopup />
-      {/* Splash Screen - shows on startup */}
-      {showSplash && (
-        <SplashScreen onComplete={() => setShowSplash(false)} minDuration={2000} />
-      )}
+
 
       <CursorSpotlight />
 

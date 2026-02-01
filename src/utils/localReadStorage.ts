@@ -1,4 +1,4 @@
-import { BaseDirectory, readTextFile, writeTextFile, exists } from '@tauri-apps/plugin-fs';
+import { BaseDirectory, readTextFile, exists } from '@tauri-apps/plugin-fs';
 
 const FILE_NAME = 'read-status.json';
 const LOCAL_STORAGE_KEY = 'playon-local-read-status';
@@ -34,17 +34,10 @@ export async function loadReadStatus(): Promise<ReadStatusMap> {
 }
 
 export async function saveReadStatus(status: ReadStatusMap): Promise<void> {
-    // Save to localStorage immediately (sync fallback)
+    // Save to localStorage (sync fallback works reliably)
     try {
         localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(status));
     } catch (e) {
         console.error('[ReadStatus] localStorage save failed:', e);
-    }
-
-    // Save to FS (async)
-    try {
-        await writeTextFile(FILE_NAME, JSON.stringify(status, null, 2), { baseDir: BaseDirectory.AppLocalData });
-    } catch (e) {
-        console.error('[ReadStatus] FS save failed:', e);
     }
 }

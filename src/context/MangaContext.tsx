@@ -4,7 +4,7 @@ import { loadReadStatus, saveReadStatus, ReadStatusMap } from '../utils/localRea
 interface MangaContextType {
     localReadStatus: ReadStatusMap;
     toggleLocalReadStatus: (mangaId: string, chapterId: string, isRead: boolean) => void;
-    isChapterLocallyRead: (mangaId: string, chapterId: string) => boolean;
+    isChapterLocallyRead: (mangaId: string, chapterId: string) => boolean | undefined;
 }
 
 const MangaContext = createContext<MangaContextType | undefined>(undefined);
@@ -34,7 +34,7 @@ export function MangaProvider({ children }: { children: React.ReactNode }) {
             newStatus[mangaId][chapterId] = isRead;
 
             // Log for debugging
-            // console.log(`[MangaContext] Toggled ${mangaId} ch ${chapterId} to ${isRead}`);
+            console.log(`[MangaContext] Toggled ${mangaId} ch ${chapterId} to ${isRead}`);
 
             // Debounce Save
             if (saveTimeoutRef.current) {
@@ -48,8 +48,8 @@ export function MangaProvider({ children }: { children: React.ReactNode }) {
         });
     }, []);
 
-    const isChapterLocallyRead = useCallback((mangaId: string, chapterId: string) => {
-        return localReadStatus[mangaId]?.[chapterId] ?? false;
+    const isChapterLocallyRead = useCallback((mangaId: string, chapterId: string): boolean | undefined => {
+        return localReadStatus[mangaId]?.[chapterId]; // Returns undefined if not set
     }, [localReadStatus]);
 
     return (

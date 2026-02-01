@@ -22,7 +22,9 @@ import {
 import { sendNotification } from '@tauri-apps/plugin-notification';
 import { syncMangaFromAniList } from '../lib/syncService';
 import { useAuth } from '../hooks/useAuth';
-import { useLocalReadStatus } from '../hooks/useLocalReadStatus';
+import { useMangaProgress } from '../hooks/useMangaProgress';
+
+
 import { queueChapterDownload, queueMultipleChapters, onDownloadProgress, isDownloadFolderConfigured, deleteDownloadedChapter } from '../services/downloadService';
 import AniListSearchDialog from '../components/ui/AniListSearchDialog';
 import ChapterFilterModal, { FilterMode } from '../components/ui/ChapterFilterModal';
@@ -58,6 +60,7 @@ interface ChapterRowProps {
     onDownload: (chapter: Chapter) => void;
     onBookmark: (id: string) => void;
     onLongPress: (id: string) => void;
+    onCancelLongPress: () => void;
     onTouchEnd: () => void;
     onSwipeToggle: (chapter: Chapter, isRead: boolean) => void;
 }
@@ -77,6 +80,7 @@ const ChapterRow = memo((props: ChapterRowProps) => {
         onDownload,
         onBookmark,
         onLongPress,
+        onCancelLongPress,
         onTouchEnd,
         onSwipeToggle
     } = props;
@@ -89,10 +93,12 @@ const ChapterRow = memo((props: ChapterRowProps) => {
     const [isDragging, setIsDragging] = useState(false);
     const startX = useRef(0);
     const hasSwipeActioned = useRef(false);
+    const dragXRef = useRef(0); // Use ref for immediate value access
 
     const handleStart = (clientX: number) => {
         if (isSelectionMode) return; // Disable swipe in selection mode
         startX.current = clientX;
+        dragXRef.current = 0;
         setIsDragging(true);
         hasSwipeActioned.current = false;
     };
@@ -102,6 +108,11 @@ const ChapterRow = memo((props: ChapterRowProps) => {
         const delta = clientX - startX.current;
         // Only allow right swipe (to read/unread)
         if (delta > 0) {
+            // Cancel long press if movement detected (prevents selection during swipe)
+            if (delta > 10) {
+                onCancelLongPress();
+            }
+            dragXRef.current = delta; // Update ref immediately
             setDragX(delta);
         }
     };
@@ -110,11 +121,15 @@ const ChapterRow = memo((props: ChapterRowProps) => {
         if (!isDragging) return;
         setIsDragging(false);
 
-        // Threshold for swipe action
-        if (dragX > 75) {
+        console.log(`[ChapterRow] handleEnd dragX=${dragXRef.current} threshold=75`);
+
+        // Threshold for swipe action - use ref for immediate value
+        if (dragXRef.current > 75) {
+            console.log(`[ChapterRow] Swipe threshold met, toggling read status`);
             onSwipeToggle(chapter, !isRead);
             hasSwipeActioned.current = true;
         }
+        dragXRef.current = 0;
         setDragX(0);
     };
 
@@ -151,11 +166,16 @@ const ChapterRow = memo((props: ChapterRowProps) => {
                     }
                 }}
                 onTouchStart={(e) => {
+                    e.stopPropagation(); // Prevent global gesture interference
                     handleStart(e.touches[0].clientX);
                     onLongPress(chapter.id);
                 }}
-                onTouchMove={(e) => handleMove(e.touches[0].clientX)}
-                onTouchEnd={() => {
+                onTouchMove={(e) => {
+                    e.stopPropagation(); // Prevent global gesture interference
+                    handleMove(e.touches[0].clientX);
+                }}
+                onTouchEnd={(e) => {
+                    e.stopPropagation(); // Prevent global gesture interference
                     handleEnd();
                     onTouchEnd();
                 }}
@@ -262,7 +282,6 @@ function MangaSourceDetails() {
     const { getMapping, addMapping, removeMapping } = useMangaMappings();
     const { settings } = useSettings();
     const { } = useAuth();
-    const { toggleLocalReadStatus, isChapterLocallyRead } = useLocalReadStatus();
 
     const [manga, setManga] = useState<Manga | null>(null);
     const [chapters, setChapters] = useState<Chapter[]>([]);
@@ -330,6 +349,15 @@ function MangaSourceDetails() {
         }
         return null;
     }, [anilistMapping, sourceId, mangaId, refreshTrigger]);
+
+    // Initialize Hybrid Progress Hook AFTER localEntry is defined
+    const {
+        isChapterRead,
+        toggleChapterRead
+    } = useMangaProgress(mangaId || '', {
+        autoInitialize: true,
+        anilistProgress: localEntry?.chapter // Helper to init if entry exists
+    });
 
     const inLibrary = localEntry?.inLibrary ?? false;
 
@@ -510,18 +538,11 @@ function MangaSourceDetails() {
 
         // 2. Unread Filter (__Read Status__)
         if (unreadFilter !== 'off') {
-            if (localEntry) {
-                if (unreadFilter === 'include') { // Show Unread
-                    // CRITICAL FIX: Use parseChapterNumber for numeric comparison instead of string comparison
-                    result = result.filter(ch => parseChapterNumber(ch.number) > localEntry.chapter);
-                } else { // Exclude Unread aka Show Read
-                    result = result.filter(ch => parseChapterNumber(ch.number) <= localEntry.chapter);
-                }
-            } else if (unreadFilter === 'exclude') {
-                // If no entry, all are unread. So if we exclude unread, we show nothing.
-                result = [];
+            if (unreadFilter === 'include') { // Show Unread
+                result = result.filter(ch => !isChapterRead(ch.id, parseChapterNumber(ch.number)));
+            } else { // Exclude Unread aka Show Read
+                result = result.filter(ch => isChapterRead(ch.id, parseChapterNumber(ch.number)));
             }
-            // If include unread and no entry, we show all (all are unread)
         }
 
         // 3. Bookmarked Filter
@@ -539,7 +560,7 @@ function MangaSourceDetails() {
 
         // Apply sorting (display order based on user preference)
         return sortChaptersNumerically(result, sortOrder === 'asc');
-    }, [chapters, searchQuery, sortOrder, downloadedFilter, unreadFilter, bookmarkedFilter, localEntry, sourceId, mangaId, refreshTrigger]);
+    }, [chapters, searchQuery, sortOrder, downloadedFilter, unreadFilter, bookmarkedFilter, localEntry, sourceId, mangaId, refreshTrigger, isChapterRead]);
 
     const handleToggleSelection = useCallback((chapterId: string) => {
         setSelectedChapterIds(prev => {
@@ -673,6 +694,57 @@ function MangaSourceDetails() {
         }
 
         // Refresh UI
+        setRefreshTrigger(prev => prev + 1);
+        setIsSelectionMode(false);
+        setSelectedChapterIds(new Set());
+    };
+
+    // Mark selected chapters as read
+    const handleMarkSelectedRead = async () => {
+        if (selectedChapterIds.size === 0) return;
+
+        // Mark all selected as read
+        const updates: { id: string, number: number, read: boolean }[] = [];
+        chapters.forEach(ch => {
+            if (selectedChapterIds.has(ch.id)) {
+                updates.push({
+                    id: ch.id,
+                    number: parseChapterNumber(ch.number),
+                    read: true
+                });
+            }
+        });
+
+        // Toggle each chapter (sequential to avoid overwhelming FS/store if parallel, but store is fast)
+        for (const up of updates) {
+            await toggleChapterRead(up.id, true, up.number);
+        }
+
+        setRefreshTrigger(prev => prev + 1);
+        setIsSelectionMode(false);
+        setSelectedChapterIds(new Set());
+    };
+
+    // Mark selected chapters as unread
+    const handleMarkSelectedUnread = async () => {
+        if (selectedChapterIds.size === 0) return;
+
+        // Mark all selected as unread
+        const updates: { id: string, number: number, read: boolean }[] = [];
+        chapters.forEach(ch => {
+            if (selectedChapterIds.has(ch.id)) {
+                updates.push({
+                    id: ch.id,
+                    number: parseChapterNumber(ch.number),
+                    read: false
+                });
+            }
+        });
+
+        for (const up of updates) {
+            await toggleChapterRead(up.id, false, up.number);
+        }
+
         setRefreshTrigger(prev => prev + 1);
         setIsSelectionMode(false);
         setSelectedChapterIds(new Set());
@@ -1074,22 +1146,42 @@ function MangaSourceDetails() {
 
                         {/* Selection Controls */}
                         {isSelectionMode && (
-                            <div className="flex items-center gap-1 bg-white/5 rounded-full px-3 py-1">
-                                <span className="text-sm font-bold text-white mr-3">
-                                    {selectedChapterIds.size} Selected
-                                </span>
-                                <button className="p-2 rounded-full text-white/70 hover:text-white hover:bg-white/10" onClick={handleSelectAll} title="Select All">
-                                    <CheckIcon size={18} />
-                                </button>
-                                <button className="p-2 rounded-full text-white/70 hover:text-white hover:bg-white/10" onClick={handleDownloadSelected} title="Download">
-                                    <DownloadIcon size={18} />
-                                </button>
-                                <button className="p-2 rounded-full text-red-400 hover:bg-red-500/10" onClick={handleDeleteSelected} title="Delete">
-                                    <TrashIcon size={18} />
-                                </button>
-                                <button className="p-2 rounded-full text-white/70 hover:text-white hover:bg-white/10" onClick={() => { setIsSelectionMode(false); setSelectedChapterIds(new Set()); }} title="Cancel">
-                                    <XIcon size={18} />
-                                </button>
+                            <div className="flex flex-col gap-2 bg-white/5 rounded-xl px-3 py-2 w-full">
+                                {/* Top row: Count and Cancel */}
+                                <div className="flex items-center justify-between">
+                                    <span className="text-sm font-bold text-white">
+                                        {selectedChapterIds.size} Selected
+                                    </span>
+                                    <button className="p-1.5 rounded-full text-white/70 hover:text-white hover:bg-white/10" onClick={() => { setIsSelectionMode(false); setSelectedChapterIds(new Set()); }} title="Cancel">
+                                        <XIcon size={18} />
+                                    </button>
+                                </div>
+                                {/* Bottom row: Action buttons */}
+                                <div className="flex items-center justify-center gap-2 flex-wrap">
+                                    <button className="p-2 rounded-full text-white/70 hover:text-white hover:bg-white/10" onClick={handleSelectAll} title="Select All">
+                                        <CheckIcon size={18} />
+                                    </button>
+                                    <button className="p-2 rounded-full text-green-400 hover:bg-green-500/10" onClick={handleMarkSelectedRead} title="Mark as Read">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                            <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path>
+                                            <circle cx="12" cy="12" r="3"></circle>
+                                        </svg>
+                                    </button>
+                                    <button className="p-2 rounded-full text-orange-400 hover:bg-orange-500/10" onClick={handleMarkSelectedUnread} title="Mark as Unread">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                            <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"></path>
+                                            <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"></path>
+                                            <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"></path>
+                                            <line x1="2" y1="2" x2="22" y2="22"></line>
+                                        </svg>
+                                    </button>
+                                    <button className="p-2 rounded-full text-white/70 hover:text-white hover:bg-white/10" onClick={handleDownloadSelected} title="Download">
+                                        <DownloadIcon size={18} />
+                                    </button>
+                                    <button className="p-2 rounded-full text-red-400 hover:bg-red-500/10" onClick={handleDeleteSelected} title="Delete">
+                                        <TrashIcon size={18} />
+                                    </button>
+                                </div>
                             </div>
                         )}
                     </div>
@@ -1128,42 +1220,32 @@ function MangaSourceDetails() {
                         {filteredChapters.length === 0 ? (
                             <div className="py-12 text-center text-white/30 italic">No chapters found</div>
                         ) : (
-                            filteredChapters.map((chapter, index) => {
+                            filteredChapters.map((chapter) => {
                                 const entryId = localEntry?.id || (sourceId && mangaId ? `${sourceId}:${mangaId}` : '');
 
-                                // CALCULATE REVERSE DISPLAY CHAPTER
-                                // The requirement is: "The first chapter in the array ... should DISPLAY the text of the last chapter"
-                                // So index 0 gets filteredChapters[length-1], index 1 gets filteredChapters[length-2], etc.
-                                const displayChapter = filteredChapters[filteredChapters.length - 1 - index];
 
-                                // Boolean flags for memoized component
-                                // Check both existing progress AND new local read status
-                                const isRead = (localEntry ? parseChapterNumber(chapter.number) <= localEntry.chapter : false) || (entryId ? isChapterLocallyRead(entryId, chapter.id) : false);
-                                const isBookmarked = entryId ? isChapterBookmarked(entryId, chapter.id) : false;
-                                const isDownloaded = entryId ? isChapterDownloaded(entryId, chapter.id) : false;
-                                const isSelected = selectedChapterIds.has(chapter.id);
-                                const isDownloading = !!downloadingChapters[chapter.id];
 
                                 return (
                                     <ChapterRow
                                         key={chapter.id}
                                         chapter={chapter}
-                                        displayChapter={displayChapter}
 
-                                        isSelected={isSelected}
+
+                                        isSelected={selectedChapterIds.has(chapter.id)}
                                         isSelectionMode={isSelectionMode}
-                                        isRead={isRead}
-                                        isBookmarked={isBookmarked}
-                                        isDownloaded={isDownloaded}
-                                        isDownloading={isDownloading}
+                                        isRead={isChapterRead(chapter.id, parseChapterNumber(chapter.number))}
+                                        isBookmarked={isChapterBookmarked(entryId, chapter.id)}
+                                        isDownloaded={isChapterDownloaded(entryId, chapter.id)}
+                                        isDownloading={downloadingChapters[chapter.id] || false}
                                         onToggle={handleToggleSelection}
-                                        onPlay={handleChapterPlay}
+                                        onPlay={handleChapterClick}
                                         onDownload={handleDownloadChapter}
                                         onBookmark={handleToggleBookmark}
                                         onLongPress={handleTouchStart}
+                                        onCancelLongPress={handleTouchEnd}
                                         onTouchEnd={handleTouchEnd}
-                                        onSwipeToggle={(c, status) => {
-                                            if (entryId) toggleLocalReadStatus(entryId, c.id, status);
+                                        onSwipeToggle={(ch, newRead) => {
+                                            toggleChapterRead(ch.id, newRead, parseChapterNumber(ch.number));
                                         }}
                                     />
                                 );
