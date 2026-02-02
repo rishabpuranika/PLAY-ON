@@ -313,29 +313,6 @@ pub async fn get_anime_by_id(id: i32) -> Result<Anime, String> {
     Ok(anilist_response.data.media)
 }
 
-/// Search for anime by window title (fuzzy matching)
-/// This is useful for matching detected media player titles to AniList entries
-///
-/// # Arguments
-/// * `window_title` - The window title from media player
-///
-/// # Returns
-/// * `Result<Option<Anime>, String>` - Best matching anime or None if no good match
-pub async fn match_anime_from_title(window_title: &str) -> Result<Option<Anime>, String> {
-    // Clean up the window title (remove common suffixes like "- VLC media player")
-    let cleaned_title = window_title
-        .split(" - ")
-        .next()
-        .unwrap_or(window_title)
-        .trim();
-
-    // Search for the anime
-    let results = search_anime(cleaned_title, 5).await?;
-
-    // Return the first result (best match)
-    Ok(results.into_iter().next())
-}
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TokenResponse {
     pub access_token: String,

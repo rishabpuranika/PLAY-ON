@@ -39,3 +39,4 @@ src/config/
 *.md
 *.ps1
 commands.txt
+stats.html

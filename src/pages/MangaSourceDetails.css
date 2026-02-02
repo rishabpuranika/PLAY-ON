@@ -791,3 +791,109 @@
         /* Still hide meta */
     }
 }
+
+/* ============================================================================
+   CONTINUE READING FAB (Mihon-style)
+   ============================================================================ */
+.continue-reading-fab {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 20px;
+    background: linear-gradient(135deg, var(--color-zen-accent, #b4a2f6), #9c7cf0);
+    color: white;
+    border: none;
+    border-radius: 28px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    font-family: var(--font-rounded);
+    cursor: pointer;
+    box-shadow: 
+        0 4px 20px rgba(180, 162, 246, 0.4),
+        0 8px 32px rgba(0, 0, 0, 0.3);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    animation: fab-slide-in 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    transform-origin: bottom right;
+    white-space: nowrap;
+}
+
+.continue-reading-fab:hover {
+    transform: scale(1.05) translateY(-2px);
+    box-shadow: 
+        0 6px 28px rgba(180, 162, 246, 0.5),
+        0 12px 40px rgba(0, 0, 0, 0.4);
+}
+
+.continue-reading-fab:active {
+    transform: scale(0.98);
+}
+
+.continue-reading-fab .fab-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.continue-reading-fab .fab-text {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    line-height: 1.2;
+}
+
+.continue-reading-fab .fab-label {
+    font-size: 0.7rem;
+    font-weight: 500;
+    opacity: 0.85;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.continue-reading-fab .fab-chapter {
+    font-size: 0.95rem;
+    font-weight: 700;
+}
+
+@keyframes fab-slide-in {
+    from {
+        opacity: 0;
+        transform: translateY(20px) scale(0.9);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* Mobile adjustments for FAB */
+@media (max-width: 768px) {
+    .continue-reading-fab {
+        bottom: 80px; /* Account for bottom navigation */
+        right: 16px;
+        padding: 12px 16px;
+        font-size: 0.9rem;
+        border-radius: 24px;
+    }
+
+    .continue-reading-fab .fab-icon {
+        width: 20px;
+        height: 20px;
+    }
+
+    .continue-reading-fab .fab-label {
+        font-size: 0.65rem;
+    }
+
+    .continue-reading-fab .fab-chapter {
+        font-size: 0.85rem;
+    }
+}

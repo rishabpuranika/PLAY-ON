@@ -61,25 +61,6 @@ struct MalSearchNode {
     node: MalMediaNode,
 }
 
-/// List status for anime
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct MalAnimeListStatus {
-    pub status: Option<String>,
-    pub score: Option<i32>,
-    pub num_episodes_watched: Option<i32>,
-    pub is_rewatching: Option<bool>,
-}
-
-/// List status for manga
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct MalMangaListStatus {
-    pub status: Option<String>,
-    pub score: Option<i32>,
-    pub num_chapters_read: Option<i32>,
-    pub num_volumes_read: Option<i32>,
-    pub is_rereading: Option<bool>,
-}
-
 /// Response when updating list entry
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MalListUpdateResponse {
@@ -119,6 +100,8 @@ pub fn generate_code_challenge(verifier: &str) -> String {
 
 /// Start a localhost server and wait for OAuth callback
 /// Returns the authorization code from the callback
+#[cfg(not(target_os = "android"))]
+#[allow(dead_code)]
 pub async fn start_oauth_callback_server(port: u16) -> Result<String, String> {
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use tokio::net::TcpListener;
@@ -175,6 +158,8 @@ pub async fn start_oauth_callback_server(port: u16) -> Result<String, String> {
 }
 
 /// Extract authorization code from HTTP GET request
+#[cfg(not(target_os = "android"))]
+#[allow(dead_code)]
 fn extract_code_from_request(request: &str) -> Option<String> {
     // Find the query string in the request
     let first_line = request.lines().next()?;

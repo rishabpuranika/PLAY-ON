@@ -1,5 +1,4 @@
 use crate::storage_prefs::StorageManager;
-use sanitize_filename::sanitize;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
@@ -50,19 +49,5 @@ impl DownloadProvider {
             &request.chapter_name,
             &request.chapter_url,
         )
-    }
-
-    /// Get valid chapter directory names (Mihon checks multiple possible names)
-    pub fn get_valid_chapter_names(chapter_name: &str, chapter_url: &str) -> Vec<String> {
-        let base = sanitize(chapter_name);
-        let hash = format!("{:x}", md5::compute(chapter_url));
-        let short_hash = &hash[..6];
-
-        vec![
-            format!("{} ({}).cbz", base, short_hash),
-            format!("{}.cbz", base),
-            format!("{}_{}.cbz", base, short_hash),
-            base,
-        ]
     }
 }

@@ -1,7 +1,5 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 
-// Import the media_player module
-mod media_player;
 // Import the anilist module
 mod anilist;
 // Import file system module
@@ -94,42 +92,7 @@ fn parse_window_title_command(window_title: String) -> String {
     serde_json::to_string(&parsed).unwrap_or_else(|_| "null".to_string())
 }
 
-/// Simple in-memory cache for AniList lookups
 use std::collections::HashMap;
-use std::time::{Duration, Instant};
-
-struct CacheEntry {
-    anime: Option<anilist::Anime>,
-    timestamp: Instant,
-}
-
-lazy_static::lazy_static! {
-  static ref ANILIST_CACHE: std::sync::Mutex<HashMap<String, CacheEntry>> = Mutex::new(HashMap::new());
-}
-
-const CACHE_DURATION: Duration = Duration::from_secs(300); // 5 minutes
-
-fn get_cached_anime(title: &str) -> Option<Option<anilist::Anime>> {
-    let cache = ANILIST_CACHE.lock().ok()?;
-    if let Some(entry) = cache.get(title) {
-        if entry.timestamp.elapsed() < CACHE_DURATION {
-            return Some(entry.anime.clone());
-        }
-    }
-    None
-}
-
-fn set_cached_anime(title: String, anime: Option<anilist::Anime>) {
-    if let Ok(mut cache) = ANILIST_CACHE.lock() {
-        cache.insert(
-            title,
-            CacheEntry {
-                anime,
-                timestamp: Instant::now(),
-            },
-        );
-    }
-}
 
 /// Tauri command to detect anime from the current media player window
 #[tauri::command]
@@ -875,7 +838,8 @@ pub fn run() {
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_shell::init())
-        .plugin(tauri_plugin_fs::init());
+        .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_store::Builder::default().build());
 
     builder
         .invoke_handler(tauri::generate_handler![

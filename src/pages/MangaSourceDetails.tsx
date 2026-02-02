@@ -1384,6 +1384,31 @@ function MangaSourceDetails() {
                     onBookmarkedChange={setBookmarkedFilter}
                 />
             </div>
+
+            {/* Continue Reading FAB (Mihon-style) */}
+            {localEntry && localEntry.chapter > 0 && chapters.length > 0 && (() => {
+                const lastReadChapter = localEntry.chapter;
+                const nextChapter = chapters.find(ch => parseChapterNumber(ch.number) > lastReadChapter);
+                const displayChapter = nextChapter ? parseChapterNumber(nextChapter.number) : chapters[chapters.length - 1] ? parseChapterNumber(chapters[chapters.length - 1].number) : null;
+
+                if (displayChapter === null) return null;
+
+                return (
+                    <button
+                        className="continue-reading-fab"
+                        onClick={handleContinueReading}
+                        title={nextChapter ? `Continue to Chapter ${displayChapter}` : 'Resume latest chapter'}
+                    >
+                        <span className="fab-icon">
+                            <PlayIcon size={14} fill="currentColor" />
+                        </span>
+                        <span className="fab-text">
+                            <span className="fab-label">Continue</span>
+                            <span className="fab-chapter">Ch. {displayChapter}</span>
+                        </span>
+                    </button>
+                );
+            })()}
         </div>
     );
 }

@@ -203,8 +203,12 @@ fn get_default_backup_dir(app: &AppHandle) -> Result<PathBuf, String> {
         return Ok(path);
     }
 
-    let app_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
-    Ok(app_dir.join("backups"))
+    // Fallback for desktop if not set
+    #[cfg(not(target_os = "android"))]
+    {
+        let app_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+        Ok(app_dir.join("backups"))
+    }
 }
 
 async fn create_backup_data(
